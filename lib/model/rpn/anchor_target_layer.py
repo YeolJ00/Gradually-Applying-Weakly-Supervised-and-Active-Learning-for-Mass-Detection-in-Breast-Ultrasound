@@ -127,7 +127,7 @@ class _AnchorTargetLayer(nn.Module):
     sum_bg = torch.sum((labels == 0).int(), 1)
     # ideal num_fg, actual sum_fg
 
-# NAME THIS TECHNIQUE
+    # NAME THIS TECHNIQUE
     for i in range(batch_size):
       # subsample positive labels if we have too many
       if sum_fg[i] > num_fg:
@@ -155,7 +155,15 @@ class _AnchorTargetLayer(nn.Module):
     offset = torch.arange(0, batch_size)*gt_boxes.size(1)
 
     argmax_overlaps = argmax_overlaps + offset.view(batch_size, 1).type_as(argmax_overlaps)
-    bbox_targets = _compute_targets_batch(anchors, gt_boxes.view(-1,5)[argmax_overlaps.view(-1), :].view(batch_size, -1, 5))
+    object_label_idx = torch.where(labels.view(-1).ne(-1)) # DO NOT calculate bbox targets for ignore label
+    bbox_targets = _compute_targets_batch(anchors[object_label_idx,:], \
+                                        gt_boxes.view(-1,5)[argmax_overlaps.view(-1)[object_label_idx], :].view(batch_size, -1, 5))
+
+    # pdb.set_trace()
+    # print(gt_boxes.shape)
+    # print(gt_boxes)
+    # print(bbox_targets.shape)
+    # print(bbox_targets)
 
     # use a single value instead of 4 values for easy index.
     bbox_inside_weights[labels==1] = cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS[0]
@@ -171,10 +179,10 @@ class _AnchorTargetLayer(nn.Module):
     bbox_outside_weights[labels == 1] = positive_weights
     bbox_outside_weights[labels == 0] = negative_weights
 
-    labels = _unmap(labels, total_anchors, inds_inside, batch_size, fill=-1)
-    bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, batch_size, fill=0)
-    bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside, batch_size, fill=0)
-    bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside, batch_size, fill=0)
+    labels = _unmap(labels, total_anchors, inds_inside[object_label_idx], batch_size, fill=-1)
+    bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside[object_label_idx], batch_size, fill=0)
+    bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside[object_label_idx], batch_size, fill=0)
+    bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside[object_label_idx], batch_size, fill=0)
 
     outputs = []
 

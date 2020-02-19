@@ -47,13 +47,21 @@ class _fasterRCNN(nn.Module):
     gt_boxes = gt_boxes.data
     num_boxes = num_boxes.data
     im_label = im_label.data
+    #print(im_label)
 
     # feed image data to base model to obtain base feature map
     # (batch, 1024, H, W)
     base_feat = self.RCNN_base(im_data)
 
     # feed base feature map to RPN to obtain rois
-    rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes)
+    # if is_ws == True, rpn_loss_cls is ACTUALLY rpn_cls_prob.data
+    rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes, is_ws)
+
+
+    # pdb.set_trace()
+    # # print(rois)
+    # # print(rois_label)
+    # print(gt_boxes.shape)
 
     # if it is training phase, then use ground truth bboxes for refining
     if self.training and is_ws == False:
@@ -65,11 +73,16 @@ class _fasterRCNN(nn.Module):
       # rois_inside_ws:(batch, anchor, 4)
       # rois_outside_ws:(batch, anchor, 4)
 
+      # pdb.set_trace()
+      # print(rois)
+      # print(rois_label)
+
       rois_label = Variable(rois_label.view(-1).long())
       rois_target = Variable(rois_target.view(-1, rois_target.size(2)))
       rois_inside_ws = Variable(rois_inside_ws.view(-1, rois_inside_ws.size(2)))
       rois_outside_ws = Variable(rois_outside_ws.view(-1, rois_outside_ws.size(2)))
     else:
+
       rois_label = None
       rois_target = None
       rois_inside_ws = None
@@ -78,6 +91,13 @@ class _fasterRCNN(nn.Module):
       rpn_loss_bbox = 0
 
     rois = Variable(rois)
+
+
+    # torch.set_printoptions(threshold=5000)
+    # pdb.set_trace()
+    # print(gt_boxes)
+    # print(rois)
+
 
     # do roi pooling based on predicted rois
     # base_feat : (batch, 1024, h, w)
@@ -104,7 +124,8 @@ class _fasterRCNN(nn.Module):
       bbox_pred = bbox_pred_select.squeeze(1)
     # bbox_pred : (batch*rois, 4)
     # compute object classification probability
-    # cls_prob : (batch, rois, num classes)
+    # cls_score : (rois, num classes)
+    # cls_prob : (rois, num_classes)
     cls_score = self.RCNN_cls_score(pooled_feat)
     cls_prob = F.softmax(cls_score, 1)
 
@@ -115,18 +136,28 @@ class _fasterRCNN(nn.Module):
     1. choose one roi according to cls_prob
     2. assign rois_label
     '''
-
-    if is_ws == True:
-      cls_prob_ws = cls_prob[:,:,2]
-      chosen_roi = torch.argmax(cls_prob_ws, dim = 1) # (batch, )
-      rois_label = torch.zeros(batch_size, rois.size(1))
-      rois_label[torch.arange(batch_size), chosen_roi] = im_label + 1
-
-    if self.training:
+    if self.training and is_ws:
       # classification loss
-      RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
+      cls_prob_ws = cls_prob[:,(im_label+1).long()].squeeze() # (rois,)
+      # pdb.set_trace()
+      # print(cls_prob)
+      # print(cls_prob_ws.shape)
+      # print(cls_prob_ws)
+      chosen_roi = torch.argmax(cls_prob_ws, dim = 0)
+      rois_label = torch.FloatTensor([im_label+1.0])
+      cls_score = cls_score[chosen_roi].unsqueeze_(0) # (1,3)
+      rois_label = Variable(rois_label.view(-1).long().cuda())
+      # pdb.set_trace()
+      # print(rois_label.shape)
+      # print(cls_score.shape)
+      class_weight = torch.FloatTensor([1, 1, (1-cfg.TRAIN.WS_MAL_PCT)/cfg.TRAIN.WS_MAL_PCT]).cuda()
+      class_weight = Variable(class_weight, requires_grad = False)
+      RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
     if self.training and is_ws == False:
       # bounding box regression L1 loss
+      # class_weight = torch.FloatTensor([1, 64, 64]).cuda()
+      # class_weight = Variable(class_weight, requires_grad = False)
+      RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
       RCNN_loss_bbox = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
 
 

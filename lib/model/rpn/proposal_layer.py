@@ -65,10 +65,14 @@ class _ProposalLayer(nn.Module):
 
     # the first set of _num_anchors channels are bg probs
     # the second set are the fg probs
-    scores = input[0][:, self._num_anchors:, :, :] # num_anchors = 9; what does 9: mean??
+    scores = input[0][:, self._num_anchors:, :, :]
     bbox_deltas = input[1]
     im_info = input[2]
     cfg_key = input[3]
+    # scores : batch, anchor, H, W
+    # bbox_deltas: batch, 4 * anchor, H, W | 4 = (dx,dy,dw,dh)
+    # im_info: list of max height, max width, scale
+    # cfg_keys: TRAIN, TEST
 
     pre_nms_topN  = cfg[cfg_key].RPN_PRE_NMS_TOP_N
     post_nms_topN = cfg[cfg_key].RPN_POST_NMS_TOP_N
@@ -82,11 +86,11 @@ class _ProposalLayer(nn.Module):
     shift_y = np.arange(0, feat_height) * self._feat_stride# shift_y coordinates
     shift_x, shift_y = np.meshgrid(shift_x, shift_y) # shift_x is duplicated row wise, shift_y is duplicated column wise
     shifts = torch.from_numpy(np.vstack((shift_x.ravel(), shift_y.ravel(),
-                  shift_x.ravel(), shift_y.ravel())).transpose())
-    shifts = shifts.contiguous().type_as(scores).float()# shifts is the center coordiantes for the anchors
+                  shift_x.ravel(), shift_y.ravel())).transpose()) # [[x1, y1, x1, y1], [x2,y2,x2,y2], ...]
+    shifts = shifts.contiguous().type_as(scores).float()# shifts is the xmin, ymin coordiantes for the anchors
 
-    A = self._num_anchors # number of anchors in one spot
-    K = shifts.size(0) # number of distinct anchor loactions
+    A = self._num_anchors # number of anchors in one spot, =9
+    K = shifts.size(0) # number of distinct anchor loactions, =H*W
 
     self._anchors = self._anchors.type_as(scores)
     # anchors = self._anchors.view(1, A, 4) + shifts.view(1, K, 4).permute(1, 0, 2).contiguous()
@@ -124,7 +128,7 @@ class _ProposalLayer(nn.Module):
     scores_keep = scores
     proposals_keep = proposals
     _, order = torch.sort(scores_keep, 1, True)
-    # sort in descending order with dim=1 which is fg prob?
+    # sort in descending order with dim=1 which is fg prob
 
     output = scores.new(batch_size, post_nms_topN, 5).zero_() # maybe new_zeros?
     for i in range(batch_size):
@@ -132,6 +136,9 @@ class _ProposalLayer(nn.Module):
       # # (NOTE: convert min_size to input image scale stored in im_info[2])
       proposals_single = proposals_keep[i]
       scores_single = scores_keep[i]
+
+      scores_single = torch.where(scores_single < 0.7, torch.FloatTensor([0]).cuda(), scores_single)
+      proposals_single = torch.where(scores_single.unsqueeze(dim=1) < 0.7, torch.FloatTensor([0]).cuda(), proposals_single)
 
       # # 4. sort all (proposal, score) pairs by score from highest to lowest
       # # 5. take top pre_nms_topN (e.g. 6000)

@@ -47,14 +47,30 @@ def clip_gradient(model, clip_norm):
         if p.requires_grad and p.grad is not None:
             p.grad.mul_(norm)
 
-def vis_detections(im, class_name, dets, thresh=0.8):
+def vis_detections(im, class_name, dets, thresh=0.8, gt_box = None):
     """Visual debugging of detections."""
     for i in range(np.minimum(10, dets.shape[0])):
         bbox = tuple(int(np.round(x)) for x in dets[i, :4])
         score = dets[i, -1]
-        if score > thresh:
-            cv2.rectangle(im, bbox[0:2], bbox[2:4], (0, 204, 0), 2)
+        color = (0,0,0) # BGR
+        if class_name == 'malignant':
+            color = (0,128,255)
+        elif class_name == 'benign':
+            color = (255,255,0)
+        if score >= thresh:
+            cv2.rectangle(im, bbox[0:2], bbox[2:4], color, 2)
             cv2.putText(im, '%s: %.3f' % (class_name, score), (bbox[0], bbox[1] + 15), cv2.FONT_HERSHEY_PLAIN,
+                        1.0, (0, 0, 255), thickness=1)
+    if gt_box is not None:
+        gt_box = tuple(int(np.round(x)) for x in gt_box[0,:])
+        if gt_box[-1] == 2:
+            color = (0,0,255)
+            gt_class_name = 'malignant'
+        elif gt_box[-1] == 1:
+            color = (255,0,0)
+            gt_class_name = 'benign'
+        cv2.rectangle(im, gt_box[0:2], gt_box[2:4], color, 2)
+        cv2.putText(im,'%s: %s' % (gt_class_name, 'GT'), (gt_box[0], gt_box[1] + 15), cv2.FONT_HERSHEY_PLAIN,
                         1.0, (0, 0, 255), thickness=1)
     return im
 

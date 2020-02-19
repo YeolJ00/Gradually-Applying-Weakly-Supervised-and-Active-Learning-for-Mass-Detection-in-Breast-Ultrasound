@@ -84,10 +84,10 @@ __C.TRAIN.FG_THRESH = 0.5
 # Overlap threshold for a ROI to be considered background (class = 0 if
 # overlap in [LO, HI))
 __C.TRAIN.BG_THRESH_HI = 0.5
-__C.TRAIN.BG_THRESH_LO = 0.1
+__C.TRAIN.BG_THRESH_LO = 0.0
 
 # Use horizontally-flipped images during training?
-__C.TRAIN.USE_FLIPPED = True
+__C.TRAIN.USE_FLIPPED = False
 
 # Train bounding-box regressors
 __C.TRAIN.BBOX_REG = True
@@ -142,7 +142,7 @@ __C.TRAIN.RPN_NMS_THRESH = 0.7
 # Number of top scoring boxes to keep before apply NMS to RPN proposals
 __C.TRAIN.RPN_PRE_NMS_TOP_N = 12000
 # Number of top scoring boxes to keep after applying NMS to RPN proposals
-__C.TRAIN.RPN_POST_NMS_TOP_N = 2000
+__C.TRAIN.RPN_POST_NMS_TOP_N = 300
 # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
 __C.TRAIN.RPN_MIN_SIZE = 8
 # Deprecated (outside weights)
@@ -157,6 +157,9 @@ __C.TRAIN.USE_ALL_GT = True
 
 # Whether to tune the batch normalization parameters during training
 __C.TRAIN.BN_TRAIN = False
+
+# Malignant Percentage for weighted loss
+__C.TRAIN.WS_MAL_PCT = 0.2209 # 933/4224
 
 #
 # Testing options
@@ -280,7 +283,7 @@ __C.USE_GPU_NMS = True
 # Default GPU device id
 __C.GPU_ID = 0
 
-__C.POOLING_MODE = 'crop'
+__C.POOLING_MODE = 'align'
 
 # Size of the pooled region after RoI pooling
 __C.POOLING_SIZE = 7

@@ -46,7 +46,7 @@ def get_minibatch(roidb, num_classes):
     else:
         # For the COCO ground truth boxes, exclude the ones that are ''iscrowd'' 
         gt_inds = np.where((roidb[0]['gt_classes'] != 0) & np.all(roidb[0]['gt_overlaps'].toarray() > -1.0, axis=1))
-    gt_boxes = np.empty((len(gt_inds), 5), dtype=np.float32)
+    gt_boxes = np.empty((len(gt_inds[0]), 5), dtype=np.float32)
     gt_boxes[:, 0:4] = roidb[0]['boxes'][gt_inds, :] * im_scales[0]
     gt_boxes[:, 4] = roidb[0]['gt_classes'][gt_inds]
     blobs['gt_boxes'] = gt_boxes
@@ -54,7 +54,6 @@ def get_minibatch(roidb, num_classes):
         # shape[1] is the width of the widest image
         # shape[2] is the height of a tallest image
         # im_scale[0] is the multiplier from the original image
-    print(roidb[0])
     blobs['im_label'] = roidb[0]['im_label']
 
     # blobs['img_id'] = roidb[0]['img_id']

@@ -8,6 +8,7 @@ from model.utils.config import cfg
 from .proposal_layer import _ProposalLayer
 from .anchor_target_layer import _AnchorTargetLayer
 from model.utils.net_utils import _smooth_l1_loss
+from .focal_loss import FocalLoss2d
 
 import numpy as np
 import math
@@ -41,6 +42,9 @@ class _RPN(nn.Module):
         # define anchor target layer
         self.RPN_anchor_target = _AnchorTargetLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios)
 
+        # define Focal Loss
+        self.FocalLoss2d = FocalLoss2d(gamma = 2)
+
         self.rpn_loss_cls = 0
         self.rpn_loss_box = 0
 
@@ -55,7 +59,7 @@ class _RPN(nn.Module):
         )
         return x
 
-    def forward(self, base_feat, im_info, gt_boxes, num_boxes):
+    def forward(self, base_feat, im_info, gt_boxes, num_boxes, is_ws):
 
         batch_size = base_feat.size(0)
 
@@ -77,14 +81,19 @@ class _RPN(nn.Module):
 
         rois = self.RPN_proposal((rpn_cls_prob.data, rpn_bbox_pred.data,
                                  im_info, cfg_key))
+        # rois : (batch, 300, 5)
+
+        # torch.set_printoptions(threshold=100000)
+        # pdb.set_trace()
+        # print(rpn_cls_prob_reshape[0,1,:,:])
 
         self.rpn_loss_cls = 0
         self.rpn_loss_box = 0
-
+        if self.training and is_ws:
+            return rois, rpn_cls_prob.data, self.rpn_loss_box
         # generating training labels and build the rpn loss
-        if self.training:
+        if self.training and not is_ws:
             assert gt_boxes is not None
-
             rpn_data = self.RPN_anchor_target((rpn_cls_score.data, gt_boxes, im_info, num_boxes))
             
             # output [labels, bbox_targets, bbox_inside_weigts, bbox_outside_weights]
@@ -95,15 +104,15 @@ class _RPN(nn.Module):
             
             # compute classification loss
             rpn_cls_score = rpn_cls_score_reshape.permute(0, 2, 3, 1).contiguous().view(batch_size, -1, 2)
-            rpn_label = rpn_data[0].view(batch_size, -1)
+            rpn_label = rpn_data[0].view(batch_size, -1)   
 
             rpn_keep = Variable(rpn_label.view(-1).ne(-1).nonzero().view(-1))
             rpn_cls_score = torch.index_select(rpn_cls_score.view(-1,2), 0, rpn_keep)
             rpn_label = torch.index_select(rpn_label.view(-1), 0, rpn_keep.data)
             rpn_label = Variable(rpn_label.long())
+            # self.rpn_loss_cls = self.FocalLoss2d(rpn_cls_score, rpn_label)
             self.rpn_loss_cls = F.cross_entropy(rpn_cls_score, rpn_label)
             fg_cnt = torch.sum(rpn_label.data.ne(0)) # useless
-            # we neglect non-object boxes in the rpn loss since rpn only cares about recall(true positive/positive)
 
             rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[1:]
 

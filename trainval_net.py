@@ -88,7 +88,7 @@ def parse_args():
             default=0.001, type=float)
   parser.add_argument('--lr_decay_step', dest='lr_decay_step',
             help='step to do learning rate decay, unit is epoch',
-            default=5, type=int)
+            default=10, type=int)
   parser.add_argument('--lr_decay_gamma', dest='lr_decay_gamma',
             help='learning rate decay ratio',
             default=0.1, type=float)
@@ -204,12 +204,12 @@ if __name__ == '__main__':
   sampler_batch_ws = sampler(train_size_ws, args.batch_size)
 
   dataset_s = roibatchLoader(roidb_s, ratio_list_s, ratio_index_s, args.batch_size, \
-                 imdb_s.num_classes, training=True)
+                 imdb_s.num_classes, is_ws= False, training=True)
   dataloader_s = torch.utils.data.DataLoader(dataset_s, batch_size=args.batch_size, 
                 sampler=sampler_batch_s, num_workers=args.num_workers)
 
   dataset_ws = roibatchLoader(roidb_ws, ratio_list_ws, ratio_index_ws, args.batch_size,
-                imdb_ws.num_classes, training=True)
+                imdb_ws.num_classes, is_ws = True, training=True)
   dataloader_ws = torch.utils.data.DataLoader(dataset_ws, batch_size=args.batch_size,
                 sampler=sampler_batch_ws, num_workers=args.num_workers)
 
@@ -218,7 +218,7 @@ if __name__ == '__main__':
   im_info = torch.FloatTensor(1)
   num_boxes = torch.LongTensor(1)
   gt_boxes = torch.FloatTensor(1)
-  im_label = torch.LongTensor(1)  
+  im_label = torch.FloatTensor(1)  
 
   # ship to cuda
   if args.cuda:
@@ -296,9 +296,6 @@ if __name__ == '__main__':
   if args.mGPUs:
     fasterRCNN = nn.DataParallel(fasterRCNN)
 
-  iters_per_epoch = int((train_size_s + train_size_ws) / args.batch_size)
-  # batch epoch
-
   if args.use_tfboard:
     from tensorboardX import SummaryWriter
     logger = SummaryWriter("logs")
@@ -308,6 +305,11 @@ if __name__ == '__main__':
     fasterRCNN.train()
     loss_temp = 0
     start = time.time()
+    if epoch < 15:
+      iters_per_epoch = int((train_size_s + 0) / args.batch_size)
+      # batch epoch
+    else:
+      iters_per_epoch = int((train_size_s + train_size_ws) / args.batch_size)
 
     if epoch % (args.lr_decay_step + 1) == 0:
       adjust_learning_rate(optimizer, args.lr_decay_gamma)
@@ -318,13 +320,14 @@ if __name__ == '__main__':
 
     for step in range(iters_per_epoch):
       if step < train_size_s / args.batch_size:
+        is_ws = False
         data = next(data_iter_s)
         with torch.no_grad():
           im_data.resize_(data[0].size()).copy_(data[0])
           im_info.resize_(data[1].size()).copy_(data[1])
           gt_boxes.resize_(data[2].size()).copy_(data[2])
           num_boxes.resize_(data[3].size()).copy_(data[3])
-          im_label.resize_(data[4].size()).copy_(data[4])
+          im_label.resize_(data[4].size()).copy_(data[4])  
 
         fasterRCNN.zero_grad()
         rois, cls_prob, bbox_pred, \
@@ -343,6 +346,7 @@ if __name__ == '__main__':
         loss_temp += loss.item()
 
       else:
+        is_ws = True
         data = next(data_iter_ws)
         with torch.no_grad():
           im_data.resize_(data[0].size()).copy_(data[0])
@@ -377,22 +381,31 @@ if __name__ == '__main__':
         end = time.time()
         if step > 0:
           loss_temp /= (args.disp_interval + 1)
-          # average loss during a disp_inverval
-
-        if args.mGPUs:
-          loss_rpn_cls = rpn_loss_cls.mean().item()
-          loss_rpn_box = rpn_loss_box.mean().item()
-          loss_rcnn_cls = RCNN_loss_cls.mean().item()
-          loss_rcnn_box = RCNN_loss_bbox.mean().item()
-          fg_cnt = torch.sum(rois_label.data.ne(0))
-          bg_cnt = rois_label.data.numel() - fg_cnt
+          # average loss during a disp_inverval\
+        if is_ws == False:
+          if args.mGPUs:
+            loss_rpn_cls = rpn_loss_cls.mean().item()
+            loss_rpn_box = rpn_loss_box.mean().item()
+            loss_rcnn_cls = RCNN_loss_cls.mean().item()
+            loss_rcnn_box = RCNN_loss_bbox.mean().item()
+          else:
+            loss_rpn_cls = rpn_loss_cls.item()
+            loss_rpn_box = rpn_loss_box.item()
+            loss_rcnn_cls = RCNN_loss_cls.item()
+            loss_rcnn_box = RCNN_loss_bbox.item()
         else:
-          loss_rpn_cls = rpn_loss_cls.item()
-          loss_rpn_box = rpn_loss_box.item()
-          loss_rcnn_cls = RCNN_loss_cls.item()
-          loss_rcnn_box = RCNN_loss_bbox.item()
-          fg_cnt = torch.sum(rois_label.data.ne(0))
-          bg_cnt = rois_label.data.numel() - fg_cnt
+          if args.mGPUs:
+            loss_rpn_cls = 0
+            loss_rpn_box = 0
+            loss_rcnn_cls = RCNN_loss_cls.mean().item()
+            loss_rcnn_box = 0
+          else:
+            loss_rpn_cls = 0
+            loss_rpn_box = 0
+            loss_rcnn_cls = RCNN_loss_cls.item()
+            loss_rcnn_box = 0
+        fg_cnt = torch.sum(rois_label.data.ne(0))
+        bg_cnt = rois_label.data.numel() - fg_cnt
 
         print("[session %d][epoch %2d][iter %4d/%4d] loss: %.4f, lr: %.2e" \
                                 % (args.session, epoch, step, iters_per_epoch, loss_temp, lr))
