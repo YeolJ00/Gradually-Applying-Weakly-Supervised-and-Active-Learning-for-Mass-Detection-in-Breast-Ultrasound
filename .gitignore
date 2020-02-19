@@ -1,0 +1,9 @@
+/output/
+/lib/faster_rcnn.egg-info/
+/lib/build/
+/data/
+/faster-rcnn/
+/__pycache__/
+/.vscode/
+*.so
+
