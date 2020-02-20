@@ -47,7 +47,7 @@ class _ProposalTargetLayer(nn.Module):
         fg_rois_per_image = int(np.round(cfg.TRAIN.FG_FRACTION * rois_per_image))
         fg_rois_per_image = 1 if fg_rois_per_image == 0 else fg_rois_per_image
 
-        labels, rois, bbox_targets, bbox_inside_weights = self._sample_rois_pytorch(
+        labels, rois, bbox_targets, bbox_inside_weights, fg_rois_per_this_image= self._sample_rois_pytorch(
             all_rois, gt_boxes, fg_rois_per_image,
             rois_per_image, self._num_classes)
         # labels_batch : (batch, rois_per_image)
@@ -57,7 +57,7 @@ class _ProposalTargetLayer(nn.Module):
 
         bbox_outside_weights = (bbox_inside_weights > 0).float()
 
-        return rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights
+        return rois, labels, bbox_targets, bbox_inside_weights, bbox_outside_weights, fg_rois_per_this_image
 
     def backward(self, top, propagate_down, bottom):
         """This layer does not propagate gradients."""
@@ -143,6 +143,7 @@ class _ProposalTargetLayer(nn.Module):
         gt_rois_batch = all_rois.new(batch_size, rois_per_image, 5).zero_()
         # Guard against the case when an image has more than max_fg_rois_per_image
         # foreground RoIs
+        _fg_rois_per_this_image = 0
         for i in range(batch_size):
 
             fg_inds = torch.nonzero(max_overlaps[i] >= cfg.TRAIN.FG_THRESH).view(-1)
@@ -208,6 +209,7 @@ class _ProposalTargetLayer(nn.Module):
             rois_batch[i,:,0] = i
 
             gt_rois_batch[i] = gt_boxes[i][gt_assignment[i][keep_inds]]
+            _fg_rois_per_this_image = fg_rois_per_this_image
 
         bbox_target_data = self._compute_targets_pytorch(
                 rois_batch[:,:,1:5], gt_rois_batch[:,:,:4])
@@ -215,7 +217,7 @@ class _ProposalTargetLayer(nn.Module):
         bbox_targets, bbox_inside_weights = \
                 self._get_bbox_regression_labels_pytorch(bbox_target_data, labels_batch, num_classes)
 
-        return labels_batch, rois_batch, bbox_targets, bbox_inside_weights
+        return labels_batch, rois_batch, bbox_targets, bbox_inside_weights, _fg_rois_per_this_image
         # labels_batch : (batch, rois_per_image)
         # rois_batch: (batch, rois_per_image, 5) 5 is (batch,x,y,x,y)
         # bbox_targets: (batch, anchor, 4)

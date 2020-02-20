@@ -66,12 +66,13 @@ class _fasterRCNN(nn.Module):
     # if it is training phase, then use ground truth bboxes for refining
     if self.training and is_ws == False:
       roi_data = self.RCNN_proposal_target(rois, gt_boxes, num_boxes)
-      rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws = roi_data
+      rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws, fg_rois_per_this_image = roi_data
       # rois : (batch, rois per image, 5)
       # rois_label: (batch, rois_per_image)
       # rois_target: (batch, anchor, 4)
       # rois_inside_ws:(batch, anchor, 4)
       # rois_outside_ws:(batch, anchor, 4)
+      # fg_rois_per_this_image : int
 
       # pdb.set_trace()
       # print(rois)
@@ -155,9 +156,11 @@ class _fasterRCNN(nn.Module):
       RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
     if self.training and is_ws == False:
       # bounding box regression L1 loss
-      # class_weight = torch.FloatTensor([1, 64, 64]).cuda()
-      # class_weight = Variable(class_weight, requires_grad = False)
-      RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
+      fg = max(1, fg_rois_per_this_image)
+      bg = max(1, cfg.TRAIN.BATCH_SIZE - fg_rois_per_this_image)
+      class_weight = torch.FloatTensor([1, 0.5*bg/fg, 0.5*bg/fg]).cuda()
+      class_weight = Variable(class_weight, requires_grad = False)
+      RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
       RCNN_loss_bbox = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
 
 

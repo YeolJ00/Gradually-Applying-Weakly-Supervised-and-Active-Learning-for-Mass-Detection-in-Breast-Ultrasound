@@ -340,8 +340,8 @@ if __name__ == '__main__':
         # rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox : single value
         # rois_label : (batch*rois)
       
-        # class balance needed
-        loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
+        # 15 is for bbox loss balance
+        loss = rpn_loss_cls.mean() + 15 * rpn_loss_box.mean() \
             + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
         loss_temp += loss.item()
 

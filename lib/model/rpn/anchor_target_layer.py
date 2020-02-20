@@ -155,11 +155,12 @@ class _AnchorTargetLayer(nn.Module):
     offset = torch.arange(0, batch_size)*gt_boxes.size(1)
 
     argmax_overlaps = argmax_overlaps + offset.view(batch_size, 1).type_as(argmax_overlaps)
-    object_label_idx = torch.where(labels.view(-1).ne(-1)) # DO NOT calculate bbox targets for ignore label
+    object_label_idx = torch.where(labels.view(-1).ne(-1))[0] # DO NOT calculate bbox targets for ignore label
     bbox_targets = _compute_targets_batch(anchors[object_label_idx,:], \
                                         gt_boxes.view(-1,5)[argmax_overlaps.view(-1)[object_label_idx], :].view(batch_size, -1, 5))
 
     # pdb.set_trace()
+    # print(object_label_idx[0])
     # print(gt_boxes.shape)
     # print(gt_boxes)
     # print(bbox_targets.shape)
@@ -179,10 +180,22 @@ class _AnchorTargetLayer(nn.Module):
     bbox_outside_weights[labels == 1] = positive_weights
     bbox_outside_weights[labels == 0] = negative_weights
 
-    labels = _unmap(labels, total_anchors, inds_inside[object_label_idx], batch_size, fill=-1)
+    # pdb.set_trace()
+    # print(inds_inside.shape)
+    # print(inds_inside)
+    # print(object_label_idx.shape)
+    # print(object_label_idx)
+    # print(inds_inside[object_label_idx].shape)
+    # print(inds_inside[object_label_idx])
+    # print(labels.shape)
+    # print(labels)
+    # print(total_anchors)
+
+
+    labels = _unmap(labels[:,object_label_idx], total_anchors, inds_inside[object_label_idx], batch_size, fill=-1)
     bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside[object_label_idx], batch_size, fill=0)
-    bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside[object_label_idx], batch_size, fill=0)
-    bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside[object_label_idx], batch_size, fill=0)
+    bbox_inside_weights = _unmap(bbox_inside_weights[:,object_label_idx], total_anchors, inds_inside[object_label_idx], batch_size, fill=0)
+    bbox_outside_weights = _unmap(bbox_outside_weights[:,object_label_idx], total_anchors, inds_inside[object_label_idx], batch_size, fill=0)
 
     outputs = []
 
