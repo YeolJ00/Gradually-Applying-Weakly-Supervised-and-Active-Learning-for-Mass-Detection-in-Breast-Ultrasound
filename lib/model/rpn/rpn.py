@@ -7,7 +7,7 @@ from torch.autograd import Variable
 from model.utils.config import cfg
 from .proposal_layer import _ProposalLayer
 from .anchor_target_layer import _AnchorTargetLayer
-from model.utils.net_utils import _smooth_l1_loss
+from model.utils.net_utils import _smooth_l1_loss_3d
 from .focal_loss import FocalLoss2d
 
 import numpy as np
@@ -78,7 +78,6 @@ class _RPN(nn.Module):
 
         # proposal layer
         cfg_key = 'TRAIN' if self.training else 'TEST'
-
         rois = self.RPN_proposal((rpn_cls_prob.data, rpn_bbox_pred.data,
                                  im_info, cfg_key))
         # rois : (batch, 300, 5)
@@ -98,13 +97,18 @@ class _RPN(nn.Module):
             
             # output [labels, bbox_targets, bbox_inside_weigts, bbox_outside_weights]
             # labels : (batch_size, 1, A*H, W)
-            # bbox_targets: (batch_size, 4*A, H, W)
-            # bbox_inside_weights: (batch_size, 4*A, H, W)
-            # bbox_outside_weights: (batch_size, 4*A, H, W)
+            # bbox_targets: (batch_size, A*4, H, W)
+            # bbox_inside_weights: (batch_size, A*4, H, W)
+            # bbox_outside_weights: (batch_size, A*4, H, W)
             
             # compute classification loss
             rpn_cls_score = rpn_cls_score_reshape.permute(0, 2, 3, 1).contiguous().view(batch_size, -1, 2)
-            rpn_label = rpn_data[0].view(batch_size, -1)   
+            rpn_label = rpn_data[0].view(batch_size, -1)#  (batch, 9*H*W)
+            _rpn_label = rpn_label.view(batch_size, 9, -1)#(batch, 9, H*W)
+            # pdb.set_trace()
+            # print(_rpn_label[0,,1])
+            # print(_rpn_label[0,:,2])
+            # print(_rpn_label[0,:,3])
 
             rpn_keep = Variable(rpn_label.view(-1).ne(-1).nonzero().view(-1))
             rpn_cls_score = torch.index_select(rpn_cls_score.view(-1,2), 0, rpn_keep)
@@ -121,12 +125,14 @@ class _RPN(nn.Module):
             rpn_bbox_outside_weights = Variable(rpn_bbox_outside_weights)
             rpn_bbox_targets = Variable(rpn_bbox_targets)
 
-
-            # torch.set_printoptions(threshold= 1000000)
-            # pdb.set_trace()
-
-            self.rpn_loss_box = _smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
-                                                            rpn_bbox_outside_weights, sigma=3, dim=[1,2,3])
+            # self.rpn_loss_box = _smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
+            #                                                 rpn_bbox_outside_weights, sigma=3, dim=[1,2,3])#(1, 9, H, W)
+            
+            _rpn_loss_box = _smooth_l1_loss_3d(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
+                                                            rpn_bbox_outside_weights, sigma=3)
+            _rpn_loss_box = _rpn_loss_box.view(batch_size, 9, -1)
+            _rpn_loss_box = torch.where(_rpn_label == 1, _rpn_loss_box, torch.FloatTensor([0]).cuda()) #(1, 9, H*W)
+            self.rpn_loss_box = _rpn_loss_box.sum(2).sum(1).mean()
 
         return rois, self.rpn_loss_cls, self.rpn_loss_box
         # rois : proposals sent to faster_rcnn (batch, nms_top_n, 5) 5 is (batch#,x,y,x,y)

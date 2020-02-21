@@ -57,10 +57,10 @@ class _fasterRCNN(nn.Module):
     # if is_ws == True, rpn_loss_cls is ACTUALLY rpn_cls_prob.data
     rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes, is_ws)
 
-
+    # torch.set_printoptions(threshold=5000)
     # pdb.set_trace()
-    # # print(rois)
-    # # print(rois_label)
+    # print(rois[0,:25])
+    # print(gt_boxes)
     # print(gt_boxes.shape)
 
     # if it is training phase, then use ground truth bboxes for refining
@@ -161,6 +161,7 @@ class _fasterRCNN(nn.Module):
       class_weight = torch.FloatTensor([1, 0.5*bg/fg, 0.5*bg/fg]).cuda()
       class_weight = Variable(class_weight, requires_grad = False)
       RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
+      # RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
       RCNN_loss_bbox = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
 
 

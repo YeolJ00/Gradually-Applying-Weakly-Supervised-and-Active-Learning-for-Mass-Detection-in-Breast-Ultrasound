@@ -202,7 +202,7 @@ class _AnchorTargetLayer(nn.Module):
     labels = labels.view(batch_size, height, width, A).permute(0,3,1,2).contiguous()
     labels = labels.view(batch_size, 1, A * height, width)
     outputs.append(labels)
-
+    
     bbox_targets = bbox_targets.view(batch_size, height, width, A*4).permute(0,3,1,2).contiguous()
     outputs.append(bbox_targets)
 

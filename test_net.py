@@ -350,6 +350,8 @@ if __name__ == '__main__':
     scores = cls_prob.data
     boxes = rois.data[:, :, 1:5] #(batch, rois, 4)
 
+
+
     if cfg.TEST.BBOX_REG:
       # Apply bounding-box regression deltas
       box_deltas = bbox_pred.data# (batch, rois,4)

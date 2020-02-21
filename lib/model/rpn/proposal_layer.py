@@ -115,19 +115,28 @@ class _ProposalLayer(nn.Module):
     # proposals = clip_boxes_batch(proposals, im_info, batch_size)
 
     # assign the score to 0 if it's non keep.
-    # keep = self._filter_boxes(proposals, min_size * im_info[:, 2])
+    keep = self._filter_boxes(proposals, min_size * im_info[:, 2])
+
+    # pdb.set_trace()
+    # print(keep.shape)
+    # print(keep)
+
+    keep_idx = torch.where(keep)[1]
+    trim_size = len(keep_idx)
+
 
     # trim keep index to make it euqal over batch
     # keep_idx = torch.cat(tuple(keep_idx), 0)
 
-    # scores_keep = scores.view(-1)[keep_idx].view(batch_size, trim_size)
-    # proposals_keep = proposals.view(-1, 4)[keep_idx, :].contiguous().view(batch_size, trim_size, 4)
+    scores_keep = scores.view(-1)[keep_idx].view(batch_size, trim_size)
+    proposals_keep = proposals.view(-1, 4)[keep_idx, :].contiguous().view(batch_size, trim_size, 4)
+    
 
-    # _, order = torch.sort(scores_keep, 1, True)
-
-    scores_keep = scores
-    proposals_keep = proposals
     _, order = torch.sort(scores_keep, 1, True)
+
+    # scores_keep = scores
+    # proposals_keep = proposals
+    # _, order = torch.sort(scores_keep, 1, True)
     # sort in descending order with dim=1 which is fg prob
 
     output = scores.new(batch_size, post_nms_topN, 5).zero_() # maybe new_zeros?
@@ -137,8 +146,8 @@ class _ProposalLayer(nn.Module):
       proposals_single = proposals_keep[i]
       scores_single = scores_keep[i]
 
-      scores_single = torch.where(scores_single < 0.7, torch.FloatTensor([0]).cuda(), scores_single)
-      proposals_single = torch.where(scores_single.unsqueeze(dim=1) < 0.7, torch.FloatTensor([0]).cuda(), proposals_single)
+      # scores_single = torch.where(scores_single < 0.5, torch.FloatTensor([0]).cuda(), scores_single)
+      # proposals_single = torch.where(scores_single.unsqueeze(dim=1) < 0.5, torch.FloatTensor([0]).cuda(), proposals_single)
 
       # # 4. sort all (proposal, score) pairs by score from highest to lowest
       # # 5. take top pre_nms_topN (e.g. 6000)

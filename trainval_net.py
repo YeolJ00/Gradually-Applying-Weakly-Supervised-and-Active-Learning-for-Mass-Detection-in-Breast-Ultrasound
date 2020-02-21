@@ -305,7 +305,7 @@ if __name__ == '__main__':
     fasterRCNN.train()
     loss_temp = 0
     start = time.time()
-    if epoch < 15:
+    if epoch < 20:
       iters_per_epoch = int((train_size_s + 0) / args.batch_size)
       # batch epoch
     else:
@@ -385,12 +385,12 @@ if __name__ == '__main__':
         if is_ws == False:
           if args.mGPUs:
             loss_rpn_cls = rpn_loss_cls.mean().item()
-            loss_rpn_box = rpn_loss_box.mean().item()
+            loss_rpn_box = 15 * rpn_loss_box.mean().item()
             loss_rcnn_cls = RCNN_loss_cls.mean().item()
             loss_rcnn_box = RCNN_loss_bbox.mean().item()
           else:
             loss_rpn_cls = rpn_loss_cls.item()
-            loss_rpn_box = rpn_loss_box.item()
+            loss_rpn_box = 15 * rpn_loss_box.item()
             loss_rcnn_cls = RCNN_loss_cls.item()
             loss_rcnn_box = RCNN_loss_bbox.item()
         else:
