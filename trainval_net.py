@@ -82,7 +82,7 @@ def parse_args():
 # config optimization
   parser.add_argument('--o', dest='optimizer',
             help='training optimizer',
-            default="sgd", type=str)
+            default="adam", type=str)
   parser.add_argument('--lr', dest='lr',
             help='starting learning rate',
             default=0.001, type=float)
@@ -305,7 +305,7 @@ if __name__ == '__main__':
     fasterRCNN.train()
     loss_temp = 0
     start = time.time()
-    if epoch < 20:
+    if epoch < 30:
       iters_per_epoch = int((train_size_s + 0) / args.batch_size)
       # batch epoch
     else:

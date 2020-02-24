@@ -156,12 +156,12 @@ class _fasterRCNN(nn.Module):
       RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
     if self.training and is_ws == False:
       # bounding box regression L1 loss
-      fg = max(1, fg_rois_per_this_image)
-      bg = max(1, cfg.TRAIN.BATCH_SIZE - fg_rois_per_this_image)
-      class_weight = torch.FloatTensor([1, 0.5*bg/fg, 0.5*bg/fg]).cuda()
-      class_weight = Variable(class_weight, requires_grad = False)
-      RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
-      # RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
+      # fg = max(1, fg_rois_per_this_image)
+      # bg = max(1, cfg.TRAIN.BATCH_SIZE - fg_rois_per_this_image)
+      # class_weight = torch.FloatTensor([1, 0.5*bg/fg, 0.5*bg/fg]).cuda()
+      # class_weight = Variable(class_weight, requires_grad = False)
+      # RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
+      RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
       RCNN_loss_bbox = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
 
 
@@ -179,8 +179,9 @@ class _fasterRCNN(nn.Module):
       if truncated:
         m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean) # not a perfect approximation
       else:
-        m.weight.data.normal_(mean, stddev)
-        m.bias.data.zero_()
+        torch.nn.init.xavier_normal_(m.weight)
+        # m.weight.data.normal_(mean, stddev)
+        # m.bias.data.zero_()
 
     normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.TRUNCATED)
     normal_init(self.RCNN_rpn.RPN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)

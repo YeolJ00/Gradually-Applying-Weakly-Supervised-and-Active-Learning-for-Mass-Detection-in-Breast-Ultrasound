@@ -106,7 +106,7 @@ class _RPN(nn.Module):
             rpn_label = rpn_data[0].view(batch_size, -1)#  (batch, 9*H*W)
             _rpn_label = rpn_label.view(batch_size, 9, -1)#(batch, 9, H*W)
             # pdb.set_trace()
-            # print(_rpn_label[0,,1])
+            # print(_rpn_label.shape)
             # print(_rpn_label[0,:,2])
             # print(_rpn_label[0,:,3])
 
@@ -132,7 +132,7 @@ class _RPN(nn.Module):
                                                             rpn_bbox_outside_weights, sigma=3)
             _rpn_loss_box = _rpn_loss_box.view(batch_size, 9, -1)
             _rpn_loss_box = torch.where(_rpn_label == 1, _rpn_loss_box, torch.FloatTensor([0]).cuda()) #(1, 9, H*W)
-            self.rpn_loss_box = _rpn_loss_box.sum(2).sum(1).mean()
+            self.rpn_loss_box = _rpn_loss_box.sum(2).mean()
 
         return rois, self.rpn_loss_cls, self.rpn_loss_box
         # rois : proposals sent to faster_rcnn (batch, nms_top_n, 5) 5 is (batch#,x,y,x,y)

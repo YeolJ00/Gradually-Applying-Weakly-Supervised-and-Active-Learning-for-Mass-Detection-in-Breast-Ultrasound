@@ -306,6 +306,14 @@ if __name__ == '__main__':
           gt_boxes_rescale[:,4] *= im_info.data[0][2] # restore class label
           im2show = vis_detections(im2show, imdb_s.classes[j], cls_dets.cpu().numpy(),thresh = 0.3, \
             gt_box = gt_boxes_rescale.cpu().numpy())
+
+    # pdb.set_trace()
+    # print(all_boxes[0][0])
+    # print(all_boxes[1][0])
+    # print(all_boxes[2][0])
+    # print(all_boxes[0][1])
+    # print(all_boxes[1][1])
+    # print(all_boxes[2][1])
     
 
     # Limit to max_per_image detections *over all classes*
@@ -325,7 +333,7 @@ if __name__ == '__main__':
                     .format(i + 1, num_images_s, detect_time, nms_time))
     sys.stdout.flush()
     if vis and i%10==0:
-      cv2.imwrite('output/res101/test/faster_rcnn_10/result_test_{}.png'.format(i), im2show)
+      cv2.imwrite('output/{}/test/faster_rcnn_10/result_test_{}.png'.format(args.net, i), im2show)
       #pdb.set_trace()
       #cv2.imshow('test', im2show)
       #cv2.waitKey(0)
@@ -424,7 +432,7 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     if vis and i%10 ==0:
-      cv2.imwrite('output/res101/test/faster_rcnn_10/result_test_normal_{}.png'.format(i), im2show)
+      cv2.imwrite('output/{}/test/faster_rcnn_10/result_test_normal_{}.png'.format(args.net, i), im2show)
       #pdb.set_trace()
       #cv2.imshow('test', im2show)
       #cv2.waitKey(0)
