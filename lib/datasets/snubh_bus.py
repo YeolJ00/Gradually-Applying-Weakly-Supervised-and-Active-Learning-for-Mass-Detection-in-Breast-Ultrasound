@@ -207,35 +207,37 @@ class snubh_bus(imdb):
             _only_cls_score = 0
             _only_iou = 0
 
-            for cls_idx in range(1,self._num_classes):
+            for cls_idx in range(1,self.num_classes):
                 pred_boxes = pred_boxes_cls[cls_idx].reshape(-1,5)
+                # pdb.set_trace()
+                # print(pred_boxes.shape)
+                # print(pred_boxes)
                 for roi_idx in range(len(pred_boxes)):
                     roi = torch.from_numpy(pred_boxes[roi_idx][:4])
                     cls_prob = pred_boxes[roi_idx][-1]
-                    iou = 0
-                    if gt_box.size > 0:
-                        ixmin, iymin, _, _ = torch.min(roi, gt_box)
-                        _, _, ixmax, iymax = torch.max(roi, gt_box)
-                        iw = torch.max(ixmax-ixmin, torch.Tensor([0]))
-                        ih = torch.max(iymax-iymin, torch.Tensor([0]))
-                        inters = iw*ih
+                    ixmin, iymin, _, _ = torch.max(roi, gt_box)
+                    _, _, ixmax, iymax = torch.min(roi, gt_box)
+                    iw = torch.max(ixmax-ixmin, torch.Tensor([0]))
+                    ih = torch.max(iymax-iymin, torch.Tensor([0]))
+                    inters = iw*ih
 
-                        uni = ((roi[2] - roi[0] + 1.) * (roi[3] - roi[1] + 1.) +
-                                (gt_box[:, 2] - gt_box[:, 0] + 1.) *
-                                (gt_box[:, 3] - gt_box[:, 1] + 1.) - inters)
-                        iou = inters/uni
-                    if iou > 0.5:# Threshold for detection
+                    uni = ((roi[2] - roi[0] + 1.) * (roi[3] - roi[1] + 1.) +
+                            (gt_box[2] - gt_box[0] + 1.) * (gt_box[3] - gt_box[1] + 1.) - 
+                            inters)
+                    iou = inters/uni
+                    if iou > 0.5 and cls_prob > thresh:# Threshold for detection
                         box_over_object += 1
                         if cls_idx == gt_cls and cls_prob>0.5:
                             cor_box_over_object += 1
                     
                     # Variables for checking thesis, Irrelavant to test----
-                    _num_boxes_per_image += 1
-                    _only_cls_score = cls_prob
-                    _only_iou = iou
+                    if cls_prob > thresh:
+                        _num_boxes_per_image += 1
+                        _only_cls_score = cls_prob
+                        _only_iou = iou
             if _num_boxes_per_image == 1:
                 with open(logdir+'/thesis.txt','a') as f:
-                    f.write('{},{}\n'.format(_only_cls_score, _only_iou))
+                    f.write('{:.3f},{:.3f}\n'.format(_only_cls_score, _only_iou.item()))
         # Finished counting for the whole dataset
         box_over_background = all_detected_boxes - box_over_object
         with open(logfile, 'a') as f:

@@ -304,7 +304,7 @@ if __name__ == '__main__':
       if vis:
           gt_boxes_rescale = gt_boxes[:,:5] / im_info.data[0][2]
           gt_boxes_rescale[:,4] *= im_info.data[0][2] # restore class label
-          im2show = vis_detections(im2show, imdb_s.classes[j], cls_dets.cpu().numpy(),thresh = 0.3, \
+          im2show = vis_detections(im2show, imdb_s.classes[j], cls_dets.cpu().numpy(),thresh = cfg.TEST.VIS_THRESH, \
             gt_box = gt_boxes_rescale.cpu().numpy())
 
     # pdb.set_trace()
@@ -409,7 +409,7 @@ if __name__ == '__main__':
         keep = nms(cls_boxes[order, :], cls_scores[order], cfg.TEST.NMS) 
         cls_dets = cls_dets[keep.view(-1).long()] # (rois',5)
         if vis:
-          im2show = vis_detections(im2show, imdb_s.classes[j], cls_dets.cpu().numpy(), 0.3)
+          im2show = vis_detections(im2show, imdb_s.classes[j], cls_dets.cpu().numpy(), cfg.TEST.VIS_THRESH)
         all_boxes_n[j][i] = cls_dets.cpu().numpy()
       else:
         all_boxes_n[j][i] = empty_array
@@ -437,7 +437,7 @@ if __name__ == '__main__':
       #cv2.imshow('test', im2show)
       #cv2.waitKey(0)
   print('Evaluating detections')
-  imdb_s.evaluate_detections(all_boxes, all_boxes_n, output_dir, thresh = 0.3)
+  imdb_s.evaluate_detections(all_boxes, all_boxes_n, output_dir, thresh = cfg.TEST.EVAL_OBJ_THRESH)
 
   with open(det_file, 'wb') as f:
     pickle.dump(all_boxes, f, pickle.HIGHEST_PROTOCOL)

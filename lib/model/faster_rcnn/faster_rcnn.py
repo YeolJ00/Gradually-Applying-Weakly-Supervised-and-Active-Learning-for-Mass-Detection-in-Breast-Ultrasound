@@ -139,14 +139,23 @@ class _fasterRCNN(nn.Module):
     '''
     if self.training and is_ws:
       # classification loss
-      cls_prob_ws = cls_prob[:,(im_label+1).long()].squeeze() # (rois,)
+      # cls_prob_ws = cls_prob[:,(im_label+1).long()].squeeze() # (rois,)
+      cls_prob_ws = cls_prob[:,2].squeeze() # (rois,)
+      cls_prob_bg = cls_prob[:,0].squeeze()
       # pdb.set_trace()
       # print(cls_prob)
       # print(cls_prob_ws.shape)
       # print(cls_prob_ws)
       chosen_roi = torch.argmax(cls_prob_ws, dim = 0)
-      rois_label = torch.FloatTensor([im_label+1.0])
+      rois_label = torch.FloatTensor([im_label+1.0]) # (rois,)
       cls_score = cls_score[chosen_roi].unsqueeze_(0) # (1,3)
+
+      # negative sample with least malignant
+      chosen_bg = torch.argmin(cls_prob_ws, dim = 0)
+      bg_score = cls_score[chosen_bg].unsqueeze_(0)
+      cls_score = torch.cat((cls_score,bg_score), dim = 0)
+      rois_label = torch.FloatTensor([im_label+1.0, 0])
+
       rois_label = Variable(rois_label.view(-1).long().cuda())
       # pdb.set_trace()
       # print(rois_label.shape)
@@ -156,12 +165,12 @@ class _fasterRCNN(nn.Module):
       RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
     if self.training and is_ws == False:
       # bounding box regression L1 loss
-      # fg = max(1, fg_rois_per_this_image)
-      # bg = max(1, cfg.TRAIN.BATCH_SIZE - fg_rois_per_this_image)
-      # class_weight = torch.FloatTensor([1, 0.5*bg/fg, 0.5*bg/fg]).cuda()
-      # class_weight = Variable(class_weight, requires_grad = False)
-      # RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
-      RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
+      fg = max(1, fg_rois_per_this_image)
+      bg = max(1, cfg.TRAIN.BATCH_SIZE - fg_rois_per_this_image)
+      class_weight = torch.FloatTensor([1, 0.5*bg/fg, 0.5*bg/fg]).cuda()
+      class_weight = Variable(class_weight, requires_grad = False)
+      RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
+      # RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
       RCNN_loss_bbox = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
 
 
