@@ -148,12 +148,12 @@ class _fasterRCNN(nn.Module):
       # print(cls_prob_ws)
       chosen_roi = torch.argmax(cls_prob_ws, dim = 0)
       rois_label = torch.FloatTensor([im_label+1.0]) # (rois,)
-      cls_score = cls_score[chosen_roi].unsqueeze_(0) # (1,3)
+      _cls_score = cls_score[chosen_roi].unsqueeze_(0) # (1,3)
 
       # negative sample with least malignant
       chosen_bg = torch.argmin(cls_prob_ws, dim = 0)
       bg_score = cls_score[chosen_bg].unsqueeze_(0)
-      cls_score = torch.cat((cls_score,bg_score), dim = 0)
+      cls_score = torch.cat((_cls_score,bg_score), dim = 0)
       rois_label = torch.FloatTensor([im_label+1.0, 0])
 
       rois_label = Variable(rois_label.view(-1).long().cuda())

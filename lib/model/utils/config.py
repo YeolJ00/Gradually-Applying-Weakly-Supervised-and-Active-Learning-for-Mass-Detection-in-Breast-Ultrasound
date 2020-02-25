@@ -208,8 +208,8 @@ __C.TEST.MODE = 'nms'
 # Only useful when TEST.MODE is 'top', specifies the number of top proposals to select
 __C.TEST.RPN_TOP_N = 5000
 
-__C.TEST.VIS_THRESH = 0.3
-__C.TEST.EVAL_OBJ_THRESH = 0.3
+__C.TEST.VIS_THRESH = 0.5
+__C.TEST.EVAL_OBJ_THRESH = 0.5
 
 #
 # ResNet options
