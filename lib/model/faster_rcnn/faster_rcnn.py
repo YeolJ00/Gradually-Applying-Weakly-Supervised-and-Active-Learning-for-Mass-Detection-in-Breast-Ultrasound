@@ -139,8 +139,8 @@ class _fasterRCNN(nn.Module):
     '''
     if self.training and is_ws:
       # classification loss
-      # cls_prob_ws = cls_prob[:,(im_label+1).long()].squeeze() # (rois,)
-      cls_prob_ws = cls_prob[:,2].squeeze() # (rois,)
+      cls_prob_ws = cls_prob[:,(im_label+1).long()].squeeze() # (rois,)
+      # cls_prob_ws = cls_prob[:,2].squeeze() # (rois,)
       cls_prob_bg = cls_prob[:,0].squeeze()
       # pdb.set_trace()
       # print(cls_prob)
@@ -160,17 +160,17 @@ class _fasterRCNN(nn.Module):
       # pdb.set_trace()
       # print(rois_label.shape)
       # print(cls_score.shape)
-      class_weight = torch.FloatTensor([1, 1, (1-cfg.TRAIN.WS_MAL_PCT)/cfg.TRAIN.WS_MAL_PCT]).cuda()
+      class_weight = torch.FloatTensor([1 , 1./(1-cfg.TRAIN.WS_MAL_PCT), 1./cfg.TRAIN.WS_MAL_PCT]).cuda()
       class_weight = Variable(class_weight, requires_grad = False)
       RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
     if self.training and is_ws == False:
       # bounding box regression L1 loss
-      fg = max(1, fg_rois_per_this_image)
-      bg = max(1, cfg.TRAIN.BATCH_SIZE - fg_rois_per_this_image)
-      class_weight = torch.FloatTensor([1, 0.5*bg/fg, 0.5*bg/fg]).cuda()
-      class_weight = Variable(class_weight, requires_grad = False)
-      RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
-      # RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
+      # fg = max(1, fg_rois_per_this_image)
+      # bg = max(1, cfg.TRAIN.BATCH_SIZE - fg_rois_per_this_image)
+      # class_weight = torch.FloatTensor([1, 0.5*bg/fg, 0.5*bg/fg]).cuda()
+      # class_weight = Variable(class_weight, requires_grad = False)
+      # RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
+      RCNN_loss_cls = F.cross_entropy(cls_score, rois_label)
       RCNN_loss_bbox = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
 
 

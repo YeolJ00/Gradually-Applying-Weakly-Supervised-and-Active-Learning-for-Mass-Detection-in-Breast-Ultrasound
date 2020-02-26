@@ -72,6 +72,7 @@ class roibatchLoader(data.Dataset):
         data = torch.from_numpy(blobs['data'])
         im_info = torch.from_numpy(blobs['im_info'])
         im_label = torch.FloatTensor([blobs['im_label']])
+        file_name = blobs['file_name']
         # we need to random shuffle the bounding box.
         data_height, data_width = data.size(1), data.size(2)
         if self.training:
@@ -85,7 +86,7 @@ class roibatchLoader(data.Dataset):
                 im_info = im_info.view(3)
                 num_boxes = gt_boxes.size(0)
 
-                return data, im_info, gt_boxes, num_boxes, im_label
+                return data, im_info, gt_boxes, num_boxes, im_label, file_name
             ######################
 
 
@@ -219,7 +220,7 @@ class roibatchLoader(data.Dataset):
             padding_data = padding_data.permute(2, 0, 1).contiguous()
             im_info = im_info.view(3)
 
-            return padding_data, im_info, gt_boxes_padding, num_boxes, im_label
+            return padding_data, im_info, gt_boxes_padding, num_boxes, im_label, file_name
         else:
             data = data.permute(0, 3, 1, 2).contiguous().view(3, data_height, data_width)
             im_info = im_info.view(3)
@@ -229,7 +230,7 @@ class roibatchLoader(data.Dataset):
                 gt_boxes = torch.from_numpy(blobs['gt_boxes'][0])
             num_boxes = 0
 
-            return data, im_info, gt_boxes, num_boxes, im_label
+            return data, im_info, gt_boxes, num_boxes, im_label, file_name
 
     def __len__(self):
         return len(self._roidb)

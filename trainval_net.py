@@ -43,9 +43,12 @@ def parse_args():
             default='SNUBH_BUS', type=str)
   parser.add_argument('--net', dest='net',
           help='vgg16, res101',
-          default='res101', type=str)
+          default='vgg16', type=str)
   parser.add_argument('--start_epoch', dest='start_epoch',
             help='starting epoch',
+            default=1, type=int)
+  parser.add_argument('--strong_epoch', dest='strong_epoch',
+            help='strong epoch',
             default=1, type=int)
   parser.add_argument('--epochs', dest='max_epochs',
             help='number of epochs to train',
@@ -305,13 +308,13 @@ if __name__ == '__main__':
     fasterRCNN.train()
     loss_temp = 0
     start = time.time()
-    if epoch < 30:
+    if epoch <= args.strong_epoch:
       iters_per_epoch = int((train_size_s + 0) / args.batch_size)
       # batch epoch
     else:
       iters_per_epoch = int((train_size_s + train_size_ws) / args.batch_size)
 
-    if epoch % (args.lr_decay_step + 1) == 0:
+    if epoch % (args.lr_decay_step + 1) == 0 and args.optimizer is not 'adam':
       adjust_learning_rate(optimizer, args.lr_decay_gamma)
       lr *= args.lr_decay_gamma
 
@@ -367,7 +370,7 @@ if __name__ == '__main__':
         # rois_label : (batch*rois)
       
         # class balance needed
-        loss = RCNN_loss_cls.mean()
+        loss = 0.1 * RCNN_loss_cls.mean()
         loss_temp += loss.item()
 
         # backward

@@ -121,7 +121,8 @@ class snubh_bus(imdb):
         birads = data.getElementsByTagName('BIRADS')
         label = int(get_data_from_tag(birads[0],'diag'))
 
-
+        file_name = data.getElementsByTagName('filename')[0].childNodes[0].data + 'f'
+        
         # Load object bounding boxes into a data frame.
         for ix, obj in enumerate(objs):
             if get_data_from_tag(obj, "name").lower().strip() == '__background__':
@@ -141,7 +142,8 @@ class snubh_bus(imdb):
                 'gt_classes': gt_classes,
                 'gt_overlaps' : overlaps,
                 'flipped' : False,
-                'im_label': label}
+                'im_label': label,
+                'file_name': file_name}
 
     def evaluate_detections(self, all_boxes, all_boxes_n, output_dir, thresh):
         # all_boxes : (cls, image, boxes, 5) 5 = (x, y, x, y, cls_prob)

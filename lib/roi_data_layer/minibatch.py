@@ -55,6 +55,7 @@ def get_minibatch(roidb, num_classes):
         # shape[2] is the height of a tallest image
         # im_scale[0] is the multiplier from the original image
     blobs['im_label'] = roidb[0]['im_label']
+    blobs['file_name'] = roidb[0]['file_name']
 
     # blobs['img_id'] = roidb[0]['img_id']
     # might need to add img_path
@@ -66,6 +67,7 @@ def get_minibatch(roidb, num_classes):
     # 2. 'gt_boxes' : gt_boxes, list of gt_boxes(x1, y1, x2, y2, cls)
     # 3. 'im_info'' : list of blob width and height and scale
     # 4. 'im_label' : im_label of an image
+    # 5. 'file_name': file name of an image
 
 def _get_image_blob(roidb, scale_inds):
     """Builds an input blob from the images in the roidb at the specified

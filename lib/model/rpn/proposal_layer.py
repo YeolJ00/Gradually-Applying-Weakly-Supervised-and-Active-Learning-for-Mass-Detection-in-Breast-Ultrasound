@@ -145,9 +145,9 @@ class _ProposalLayer(nn.Module):
       # # (NOTE: convert min_size to input image scale stored in im_info[2])
       proposals_single = proposals_keep[i]
       scores_single = scores_keep[i]
-
-      # scores_single = torch.where(scores_single < 0.5, torch.FloatTensor([0]).cuda(), scores_single)
-      # proposals_single = torch.where(scores_single.unsqueeze(dim=1) < 0.5, torch.FloatTensor([0]).cuda(), proposals_single)
+      if cfg_key == 'TEST':
+        scores_single = torch.where(scores_single < 0.5, torch.FloatTensor([0]).cuda(), scores_single)
+        proposals_single = torch.where(scores_single.unsqueeze(dim=1) < 0.5, torch.FloatTensor([0]).cuda(), proposals_single)
 
       # # 4. sort all (proposal, score) pairs by score from highest to lowest
       # # 5. take top pre_nms_topN (e.g. 6000)

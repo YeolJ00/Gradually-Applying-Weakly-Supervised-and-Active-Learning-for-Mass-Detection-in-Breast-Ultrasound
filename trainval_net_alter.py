@@ -94,7 +94,9 @@ def parse_args():
   parser.add_argument('--lr_decay_gamma', dest='lr_decay_gamma',
             help='learning rate decay ratio',
             default=0.1, type=float)
-
+  parser.add_argument('--gamma_for_alpha', dest='gamma_for_alpha',
+            help='power of alpha, which is ws weigth',
+            default=5, type=float)
 # set training session
   parser.add_argument('--s', dest='session',
             help='training session',
@@ -220,7 +222,7 @@ if __name__ == '__main__':
   im_info = torch.FloatTensor(1)
   num_boxes = torch.LongTensor(1)
   gt_boxes = torch.FloatTensor(1)
-  im_label = torch.FloatTensor(1)  
+  im_label = torch.FloatTensor(1)
 
   # ship to cuda
   if args.cuda:
@@ -307,7 +309,9 @@ if __name__ == '__main__':
     # setting to train mode
     fasterRCNN.train()
     start = time.time()
-    alpha = 1 - (0.99 ** (0.9**(step / 2000)))
+    # alpha = 1 - (0.99 * (0.9**(step / 2000)))
+    # alpha = 0.01 + 0.99 * (step/80000.)
+    alpha = 0.01 + 0.99 * ((step/args.max_iter)**args.gamma_for_alpha)
 
     if step % train_size_s == 0:
       data_iter_s = iter(dataloader_s)
@@ -374,13 +378,13 @@ if __name__ == '__main__':
         loss_rpn_box_s = 15 * rpn_loss_box_s.mean().item()
         loss_rcnn_cls_s = RCNN_loss_cls_s.mean().item()
         loss_rcnn_box_s = RCNN_loss_bbox_s.mean().item()
-        loss_rcnn_cls_ws = RCNN_loss_cls_ws.mean().item()
+        loss_rcnn_cls_ws = alpha * RCNN_loss_cls_ws.mean().item()
       else:
         loss_rpn_cls_s = rpn_loss_cls_s.item()
         loss_rpn_box_s = 15 * rpn_loss_box_s.item()
         loss_rcnn_cls_s = RCNN_loss_cls_s.item()
         loss_rcnn_box_s = RCNN_loss_bbox_s.item()
-        loss_rcnn_cls_ws = RCNN_loss_cls_ws.item()
+        loss_rcnn_cls_ws = alpha * RCNN_loss_cls_ws.item()
       fg_cnt = torch.sum(rois_label.data.ne(0))
       bg_cnt = rois_label.data.numel() - fg_cnt
 
@@ -403,17 +407,20 @@ if __name__ == '__main__':
       loss_temp = 0
       start = time.time()
 
-  if step%1000==0:
-    save_name = os.path.join(output_dir, 'faster_rcnn_{}_{}_0.pth'.format(args.session, step))
-    save_checkpoint({
-      'session': args.session,
-      'step': step + 1,
-      'model': fasterRCNN.module.state_dict() if args.mGPUs else fasterRCNN.state_dict(),
-      'optimizer': optimizer.state_dict(),
-      'pooling_mode': cfg.POOLING_MODE,
-      'class_agnostic': args.class_agnostic,
-    }, save_name)
-    print('save model: {}'.format(save_name))
+    if step%10000==0:
+      save_name = os.path.join(output_dir, 'faster_rcnn_{}_{}_0.pth'.format(args.session, step))
+      save_checkpoint({
+        'session': args.session,
+        'step': step + 1,
+        'model': fasterRCNN.module.state_dict() if args.mGPUs else fasterRCNN.state_dict(),
+        'optimizer': optimizer.state_dict(),
+        'pooling_mode': cfg.POOLING_MODE,
+        'class_agnostic': args.class_agnostic,
+      }, save_name)
+      print('save model: {}'.format(save_name))
+  
+    # load all images in ws
+    # go through faster_rcnn
 
   if args.use_tfboard:
     logger.close()
