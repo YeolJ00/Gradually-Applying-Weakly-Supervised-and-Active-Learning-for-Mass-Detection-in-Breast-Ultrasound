@@ -57,8 +57,8 @@ def prepare_roidb(imdb):
         zero_inds = np.where(max_overlaps == 0)[0]
         assert all(max_classes[zero_inds] == 0)
         # max overlap > 0 => class should not be zero (must be a fg class)
-        nonzero_inds = np.where(max_overlaps > 0)[0]
-        assert all(max_classes[nonzero_inds] != 0)
+        # nonzero_inds = np.where(max_overlaps > 0)[0]
+        # assert all(max_classes[nonzero_inds] != 0)
 
 
 def rank_roidb_ratio(roidb):

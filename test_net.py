@@ -389,9 +389,9 @@ if __name__ == '__main__':
     detect_time = det_toc - det_tic
     misc_tic = time.time()
     if vis:
-      im = cv2.imread(imdb_s.image_path_at(i))
+      im = cv2.imread(imdb_n.image_path_at(i))
       im2show = np.copy(im)
-    for j in range(1, imdb_s.num_classes):
+    for j in range(1, imdb_n.num_classes):
       inds = torch.nonzero(scores[:,j]>thresh).view(-1)
       # if there is det
       if inds.numel() > 0:
@@ -409,7 +409,7 @@ if __name__ == '__main__':
         keep = nms(cls_boxes[order, :], cls_scores[order], cfg.TEST.NMS) 
         cls_dets = cls_dets[keep.view(-1).long()] # (rois',5)
         if vis:
-          im2show = vis_detections(im2show, imdb_s.classes[j], cls_dets.cpu().numpy(), cfg.TEST.VIS_THRESH)
+          im2show = vis_detections(im2show, imdb_n.classes[j], cls_dets.cpu().numpy(), cfg.TEST.VIS_THRESH)
         all_boxes_n[j][i] = cls_dets.cpu().numpy()
       else:
         all_boxes_n[j][i] = empty_array

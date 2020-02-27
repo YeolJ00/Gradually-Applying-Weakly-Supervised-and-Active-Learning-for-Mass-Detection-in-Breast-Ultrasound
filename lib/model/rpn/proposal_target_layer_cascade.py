@@ -36,11 +36,16 @@ class _ProposalTargetLayer(nn.Module):
         self.BBOX_NORMALIZE_STDS = self.BBOX_NORMALIZE_STDS.type_as(gt_boxes)
         self.BBOX_INSIDE_WEIGHTS = self.BBOX_INSIDE_WEIGHTS.type_as(gt_boxes)
 
-        gt_boxes_append = gt_boxes.new(gt_boxes.size()).zero_()
-        gt_boxes_append[:,:,1:5] = gt_boxes[:,:,:4]
+        _gt_boxes = gt_boxes[:,torch.where(gt_boxes[:,:,-1])[1],:]
+
+        gt_boxes_append = _gt_boxes.new(_gt_boxes.size()).zero_()
+        gt_boxes_append[:,:,1:5] = _gt_boxes[:,:,:4]
 
         # Include ground-truth boxes in the set of candidate rois
+        # all_rois:(batch, post_nms_topN, 5)
+        # gt_boxes_append: (batch, K, 5)
         all_rois = torch.cat([all_rois, gt_boxes_append], 1)
+        # all_rois: (batch, post_nms_topN + K, 5)
 
         num_images = 1
         rois_per_image = int(cfg.TRAIN.BATCH_SIZE / num_images)
@@ -48,7 +53,7 @@ class _ProposalTargetLayer(nn.Module):
         fg_rois_per_image = 1 if fg_rois_per_image == 0 else fg_rois_per_image
 
         labels, rois, bbox_targets, bbox_inside_weights, fg_rois_per_this_image= self._sample_rois_pytorch(
-            all_rois, gt_boxes, fg_rois_per_image,
+            all_rois, _gt_boxes, fg_rois_per_image,
             rois_per_image, self._num_classes)
         # labels_batch : (batch, rois_per_image)
         # rois_batch: (batch, rois_per_image, 5) 5 is (batch,x,y,x,y)
@@ -121,10 +126,9 @@ class _ProposalTargetLayer(nn.Module):
         """Generate a random sample of RoIs comprising foreground and background
         examples.
         """
-        # overlaps: (batch, rois, gt_boxes)
-
+        # overlaps: (batch, rois + K, gt_boxes)
+        # gt_boxes: (batch, K, 5)
         overlaps = bbox_overlaps_batch(all_rois, gt_boxes)
-
         max_overlaps, gt_assignment = torch.max(overlaps, 2)
 
         batch_size = overlaps.size(0)

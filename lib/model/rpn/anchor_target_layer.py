@@ -102,12 +102,28 @@ class _AnchorTargetLayer(nn.Module):
     bbox_outside_weights = gt_boxes.new(batch_size, inds_inside.size(0)).zero_()
 
     overlaps = bbox_overlaps_batch(anchors, gt_boxes) # (batch, number of anchors, number of gt boxes) size list of overlap ratio
+    # Calculated overlaps with background boxes too
 
+    # overlaps: (batch, N, num_gt_boxes)
+    # gt_max_overlaps   : (batch, num_gt_boxes,)
+    # max_overlaps:     : (batch, N,)
+    # argmax_overlaps   : (batch, N,)
+    fg_overlaps = torch.where(gt_boxes[:,:,-1].unsqueeze(1).expand(batch_size,inds_inside.size(0) ,gt_boxes.size(1)) != 0, overlaps, torch.FloatTensor([0]).cuda())
+    fg_max_overlaps, fg_argmax_overlaps = torch.max(fg_overlaps, 2)
+    bg_overlaps = torch.where(gt_boxes[:,:,-1].unsqueeze(1).expand(batch_size,inds_inside.size(0) ,gt_boxes.size(1)) != 0, torch.FloatTensor([0]).cuda(), overlaps)
+    bg_max_overlaps, bg_argmax_overlaps = torch.max(bg_overlaps, 2)
+    
     max_overlaps, argmax_overlaps = torch.max(overlaps, 2) # (batch, number of anchors)
     gt_max_overlaps, _ = torch.max(overlaps, 1)
+    
+    # gt_max_overlaps for background is ignored
+    gt_max_overlaps = torch.where(gt_boxes[:,:,-1] != 0, gt_max_overlaps, torch.FloatTensor([0]).cuda())
 
+    # CLOBBER POSITIVES IS FALSE
     if not cfg.TRAIN.RPN_CLOBBER_POSITIVES:
-      labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
+      # labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
+      # when using background box, only selected anchors are labeled background
+      labels[bg_max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 0
 
     gt_max_overlaps[gt_max_overlaps==0] = 1e-5
     keep = torch.sum(overlaps.eq(gt_max_overlaps.view(batch_size,1,-1).expand_as(overlaps)), 2) # (batch, number of anchors)
@@ -116,10 +132,14 @@ class _AnchorTargetLayer(nn.Module):
       labels[keep>0] = 1
 
     # fg label: above threshold IOU
-    labels[max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
+    # labels[max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
+    labels[fg_max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 1
+
 
     if cfg.TRAIN.RPN_CLOBBER_POSITIVES:
-      labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
+      # labels[max_overlaps < cfg.TRAIN.RPN_NEGATIVE_OVERLAP] = 0
+      # when using background box, only selected anchors are labeled background
+      labels[bg_max_overlaps >= cfg.TRAIN.RPN_POSITIVE_OVERLAP] = 0
 
     num_fg = int(cfg.TRAIN.RPN_FG_FRACTION * cfg.TRAIN.RPN_BATCHSIZE)
 

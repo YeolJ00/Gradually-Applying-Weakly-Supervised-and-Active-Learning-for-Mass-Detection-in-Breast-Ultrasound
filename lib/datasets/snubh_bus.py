@@ -125,8 +125,8 @@ class snubh_bus(imdb):
         
         # Load object bounding boxes into a data frame.
         for ix, obj in enumerate(objs):
-            if get_data_from_tag(obj, "name").lower().strip() == '__background__':
-                continue
+            # if get_data_from_tag(obj, "name").lower().strip() == '__background__':
+            #     continue
             cls = self._class_to_ind_image[str(get_data_from_tag(obj, "name")).lower().strip()]
             x1 = float(get_data_from_tag(obj, 'xmin'))
             y1 = float(get_data_from_tag(obj, 'ymin'))

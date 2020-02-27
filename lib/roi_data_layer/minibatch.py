@@ -42,7 +42,9 @@ def get_minibatch(roidb, num_classes):
     if cfg.TRAIN.USE_ALL_GT:
         # Include all ground truth boxes
         # we deleted [0] at the end of the code
-        gt_inds = np.where(roidb[0]['gt_classes'] != 0)
+        # WE USE BACKGROUND GT BOXES
+        # gt_inds = np.where(roidb[0]['gt_classes'] != 0)
+        gt_inds = np.where(roidb[0]['gt_classes'] != -1)
     else:
         # For the COCO ground truth boxes, exclude the ones that are ''iscrowd'' 
         gt_inds = np.where((roidb[0]['gt_classes'] != 0) & np.all(roidb[0]['gt_overlaps'].toarray() > -1.0, axis=1))

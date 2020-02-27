@@ -407,7 +407,7 @@ if __name__ == '__main__':
       loss_temp = 0
       start = time.time()
 
-    if step%10000==0:
+    if step%10000==0 and step > 0:
       save_name = os.path.join(output_dir, 'faster_rcnn_{}_{}_0.pth'.format(args.session, step))
       save_checkpoint({
         'session': args.session,
