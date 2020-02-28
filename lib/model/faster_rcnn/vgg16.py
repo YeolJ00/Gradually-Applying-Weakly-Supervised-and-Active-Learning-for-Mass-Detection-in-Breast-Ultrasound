@@ -52,7 +52,7 @@ class vgg16(_fasterRCNN):
     # else:
     #   self.RCNN_bbox_pred = nn.Linear(4096, 4 * self.n_classes)      
 
-    self.RCNN_top = nn.Sequential(nn.Linear(512, 512),nn.ReLU(), nn.Linear(512,512), nn.ReLU())
+    self.RCNN_top = nn.Sequential(nn.Linear(512, 512),nn.ReLU(),nn.Dropout(0.5), nn.Linear(512,512), nn.ReLU(), nn.Dropout(0.5))
     
     # not using the last maxpool layer
     self.RCNN_cls_score = nn.Linear(512, self.n_classes)
