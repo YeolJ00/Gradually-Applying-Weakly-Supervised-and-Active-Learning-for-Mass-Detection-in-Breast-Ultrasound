@@ -242,6 +242,10 @@ if __name__ == '__main__':
     RCNN_loss_cls, RCNN_loss_bbox, \
     rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label)
 
+    # pdb.set_trace()
+    # print(rois[0,:25])
+    # print(cls_prob[0,:25])
+
 
     scores = cls_prob.data
     boxes = rois.data[:, :, 1:5] #(batch, rois, 4)
