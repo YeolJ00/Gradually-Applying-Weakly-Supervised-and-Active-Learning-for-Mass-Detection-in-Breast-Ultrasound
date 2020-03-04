@@ -82,7 +82,7 @@ class snubh_bus(imdb):
 
         returns gt_roidb : list of dictionaries
         """
-        cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb.pkl')
+        cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb_bg.pkl')
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
                 roidb = pickle.load(fid)
