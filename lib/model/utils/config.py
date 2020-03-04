@@ -89,6 +89,24 @@ __C.TRAIN.BG_THRESH_LO = 0.0
 # Use horizontally-flipped images during training?
 __C.TRAIN.USE_FLIPPED = False
 
+#XXX added
+# Use rotated images during training
+__C.TRAIN.USE_ROTATION = False
+__C.TRAIN.ROTATION_MAX_ANGLE = 5
+
+# Use cropped images during training
+__C.TRAIN.USE_CROPPING = False
+__C.TRAIN.CROPPING_MAX_MARGIN = 0.05 # in ratio
+
+# Use brightness adjusted images during training
+__C.TRAIN.USE_BRIGHTNESS_ADJUSTMENT = True
+__C.TRAIN.BRIGHTNESS_ADJUSTMENT_MAX_DELTA = 0.2
+
+# Use contrast adjusted images during training
+__C.TRAIN.USE_CONTRAST_ADJUSTMENT = True
+__C.TRAIN.CONTRAST_ADJUSTMENT_LOWER_FACTOR = 0.2
+__C.TRAIN.CONTRAST_ADJUSTMENT_UPPER_FACTOR = 1.8
+
 # Train bounding-box regressors
 __C.TRAIN.BBOX_REG = True
 

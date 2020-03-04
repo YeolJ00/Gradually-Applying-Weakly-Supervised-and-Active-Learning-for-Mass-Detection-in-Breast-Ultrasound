@@ -201,6 +201,7 @@ class snubh_bus(imdb):
 
         for i, imagename in enumerate(imagenames):
             # pred_boxes_cls = all_boxes[:,i,:,:]
+
             pred_boxes_cls = np.asarray(all_boxes)[:,i]
             gt_box = torch.FloatTensor(recs[imagename][0]['bbox']) # assumes only one object exists as gt
             gt_cls = self._class_to_ind_image[recs[imagename][0]['name']]

@@ -16,7 +16,7 @@ import imageio
 from model.utils.config import cfg
 from model.utils.blob import prep_im_for_blob, im_list_to_blob
 import pdb
-def get_minibatch(roidb, num_classes):
+def get_minibatch(roidb, num_classes, is_ws, training):
     """
     Given a roidb, construct a minibatch sampled from it.
     roidb is not roidb, it is minibatch_db from roibatchLoader. size is 1.
@@ -31,7 +31,7 @@ def get_minibatch(roidb, num_classes):
 
     # Get the input image blob, formatted for caffe
     # return scaled blob and scale of blob, from roidb's information about the images
-    im_blob, im_scales = _get_image_blob(roidb, random_scale_inds)
+    im_blob, im_scales = _get_image_blob(roidb, random_scale_inds, is_ws, training)
 
     blobs = {'data': im_blob}
 
@@ -71,7 +71,7 @@ def get_minibatch(roidb, num_classes):
     # 4. 'im_label' : im_label of an image
     # 5. 'file_name': file name of an image
 
-def _get_image_blob(roidb, scale_inds):
+def _get_image_blob(roidb, scale_inds, is_ws, training):
     """Builds an input blob from the images in the roidb at the specified
     scales.
     """
@@ -103,7 +103,7 @@ def _get_image_blob(roidb, scale_inds):
         target_size = cfg.TRAIN.SCALES[scale_inds[i]]
         # 1 is always expected
         im, im_scale = prep_im_for_blob(im, cfg.PIXEL_MEANS, target_size,
-                                        cfg.TRAIN.MAX_SIZE)
+                                        cfg.TRAIN.MAX_SIZE, is_ws, training)
         # im is resized with im_scale ratio
         im_scales.append(im_scale)
         processed_ims.append(im)

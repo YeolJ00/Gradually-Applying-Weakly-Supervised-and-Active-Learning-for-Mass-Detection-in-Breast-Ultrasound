@@ -68,7 +68,7 @@ class roibatchLoader(data.Dataset):
         minibatch_db = [self._roidb[index_ratio]]
         # roidb is not ordered, but we access them through index_ratio, which is the original index
         # thus O.K
-        blobs = get_minibatch(minibatch_db, self._num_classes)
+        blobs = get_minibatch(minibatch_db, self._num_classes, self.is_ws, self.training)
         data = torch.from_numpy(blobs['data'])
         im_info = torch.from_numpy(blobs['im_info'])
         im_label = torch.FloatTensor([blobs['im_label']])
