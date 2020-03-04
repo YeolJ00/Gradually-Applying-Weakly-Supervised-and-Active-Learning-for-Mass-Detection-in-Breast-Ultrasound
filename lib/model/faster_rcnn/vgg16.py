@@ -42,25 +42,26 @@ class vgg16(_fasterRCNN):
       for p in self.RCNN_base[layer].parameters(): p.requires_grad = False
     # self.RCNN_base = _RCNN_base(vgg.features, self.classes, self.dout_base_model)
 
-    # self.RCNN_top = vgg.classifier
+    # --original version
+    self.RCNN_top = vgg.classifier
 
-    # # not using the last maxpool layer
-    # self.RCNN_cls_score = nn.Linear(4096, self.n_classes)
-
-    # if self.class_agnostic:
-    #   self.RCNN_bbox_pred = nn.Linear(4096, 4)
-    # else:
-    #   self.RCNN_bbox_pred = nn.Linear(4096, 4 * self.n_classes)      
-
-    self.RCNN_top = nn.Sequential(nn.Linear(25088, 512),nn.ReLU(),nn.Dropout(0.5), nn.Linear(512,512), nn.ReLU(), nn.Dropout(0.5))
-    
     # not using the last maxpool layer
-    self.RCNN_cls_score = nn.Linear(512, self.n_classes)
+    self.RCNN_cls_score = nn.Linear(4096, self.n_classes)
 
     if self.class_agnostic:
-      self.RCNN_bbox_pred = nn.Linear(512, 4)
+      self.RCNN_bbox_pred = nn.Linear(4096, 4)
     else:
-      self.RCNN_bbox_pred = nn.Linear(512, 4 * self.n_classes)      
+      self.RCNN_bbox_pred = nn.Linear(4096, 4 * self.n_classes)      
+
+    # self.RCNN_top = nn.Sequential(nn.Linear(25088, 512),nn.ReLU(),nn.Dropout(0.5), nn.Linear(512,512), nn.ReLU(), nn.Dropout(0.5))
+
+    # # not using the last maxpool layer
+    # self.RCNN_cls_score = nn.Linear(512, self.n_classes)
+
+    # if self.class_agnostic:
+    #   self.RCNN_bbox_pred = nn.Linear(512, 4)
+    # else:
+    #   self.RCNN_bbox_pred = nn.Linear(512, 4 * self.n_classes)      
 
   def _head_to_tail(self, pool5):
     

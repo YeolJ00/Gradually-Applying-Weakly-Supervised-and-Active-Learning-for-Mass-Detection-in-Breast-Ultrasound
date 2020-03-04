@@ -188,9 +188,9 @@ class _fasterRCNN(nn.Module):
       if truncated:
         m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean) # not a perfect approximation
       else:
-        # torch.nn.init.xavier_normal_(m.weight)
-        m.weight.data.normal_(mean, stddev)
-        m.bias.data.zero_()
+        torch.nn.init.xavier_normal_(m.weight)
+        # m.weight.data.normal_(mean, stddev)
+        # m.bias.data.zero_()
     
       
     def weight_Sequential(m):
@@ -203,7 +203,7 @@ class _fasterRCNN(nn.Module):
     normal_init(self.RCNN_rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.TRUNCATED)
     normal_init(self.RCNN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
     normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
-    self.RCNN_top.apply(weight_Sequential)
+    # self.RCNN_top.apply(weight_Sequential)
 
   def create_architecture(self):
     self._init_modules()
