@@ -372,7 +372,7 @@ if __name__ == '__main__':
         else:
           box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_STDS).cuda() \
                       + torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_MEANS).cuda()
-          box_deltas = box_deltas.view(1, -1, 4 * len(imdb_s.classes)) # (1, batch*rois, 4*cls)
+          box_deltas = box_deltas.view(1, -1, 4 * len(imdb_n.classes)) # (1, batch*rois, 4*cls)
 
       pred_boxes = bbox_transform_inv(boxes, box_deltas, 1) # now in form (x,y,x,y)*cls
       pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
@@ -389,9 +389,9 @@ if __name__ == '__main__':
     detect_time = det_toc - det_tic
     misc_tic = time.time()
     if vis:
-      im = cv2.imread(imdb_s.image_path_at(i))
+      im = cv2.imread(imdb_n.image_path_at(i))
       im2show = np.copy(im)
-    for j in range(1, imdb_s.num_classes):
+    for j in range(1, imdb_n.num_classes):
       inds = torch.nonzero(scores[:,j]>thresh).view(-1)
       # if there is det
       if inds.numel() > 0:
@@ -409,7 +409,7 @@ if __name__ == '__main__':
         keep = nms(cls_boxes[order, :], cls_scores[order], cfg.TEST.NMS) 
         cls_dets = cls_dets[keep.view(-1).long()] # (rois',5)
         if vis:
-          im2show = vis_detections(im2show, imdb_s.classes[j], cls_dets.cpu().numpy(), cfg.TEST.VIS_THRESH)
+          im2show = vis_detections(im2show, imdb_n.classes[j], cls_dets.cpu().numpy(), cfg.TEST.VIS_THRESH)
         all_boxes_n[j][i] = cls_dets.cpu().numpy()
       else:
         all_boxes_n[j][i] = empty_array
@@ -417,10 +417,10 @@ if __name__ == '__main__':
     # Limit to max_per_image detections *over all classes*
     if max_per_image > 0:
       image_scores = np.hstack([all_boxes_n[j][i][:, -1]
-                                for j in range(1, imdb_s.num_classes)]) # (rois, num_classes)
+                                for j in range(1, imdb_n.num_classes)]) # (rois, num_classes)
       if len(image_scores) > max_per_image:
         image_thresh = np.sort(image_scores)[-max_per_image]
-        for j in range(1, imdb_s.num_classes):
+        for j in range(1, imdb_n.num_classes):
           keep = np.where(all_boxes_n[j][i][:, -1] >= image_thresh)[0]
           all_boxes_n[j][i] = all_boxes_n[j][i][keep, :]
 
