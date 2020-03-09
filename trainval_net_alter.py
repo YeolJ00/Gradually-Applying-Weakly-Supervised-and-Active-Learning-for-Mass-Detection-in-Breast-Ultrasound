@@ -326,7 +326,7 @@ if __name__ == '__main__':
       num_boxes.resize_(data[3].size()).copy_(data[3])
       im_label.resize_(data[4].size()).copy_(data[4])  
 
-    fasterRCNN.zero_grad()
+    # fasterRCNN.zero_grad()
     rois, cls_prob, bbox_pred, \
     rpn_loss_cls_s, rpn_loss_box_s, \
     RCNN_loss_cls_s, RCNN_loss_bbox_s, \

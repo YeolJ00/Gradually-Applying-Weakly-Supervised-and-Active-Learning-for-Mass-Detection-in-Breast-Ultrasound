@@ -156,7 +156,7 @@ class _fasterRCNN(nn.Module):
       cls_score = torch.cat((_cls_score,bg_score), dim = 0)
       rois_label = torch.FloatTensor([im_label+1.0, 0])
 
-      rois_label = Variable(rois_label.view(-1).long().cuda())
+      rois_label = Variable(rois_label.view(-1).long().cuda(), requires_grad = False)
       # pdb.set_trace()
       # print(rois_label.shape)
       # print(cls_score.shape)

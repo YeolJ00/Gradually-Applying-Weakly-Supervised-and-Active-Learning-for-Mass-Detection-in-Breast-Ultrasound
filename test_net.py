@@ -300,7 +300,7 @@ if __name__ == '__main__':
         cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1) # (rois, 5)
         # cls_dets = torch.cat((cls_boxes, cls_scores), 1)
         cls_dets = cls_dets[order]
-        keep = nms(cls_boxes[order, :], cls_scores[order], cfg.TEST.NMS) 
+        keep = nms(cls_boxes[order, :], cls_scores[order], cfg.TEST.NMS)
         cls_dets = cls_dets[keep.view(-1).long()] # (rois',5)
         all_boxes[j][i] = cls_dets.cpu().numpy()
       else:
