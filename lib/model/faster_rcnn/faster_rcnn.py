@@ -139,8 +139,8 @@ class _fasterRCNN(nn.Module):
     '''
     if self.training and is_ws:
       # classification loss
-      # cls_prob_ws = cls_prob[:,(im_label+1).long()].squeeze() # (rois,)
-      cls_prob_ws = cls_prob[:,2].squeeze() # (rois,)
+      cls_prob_ws = cls_prob[:,(im_label+1).long()].squeeze() # (rois,)
+      # cls_prob_ws = cls_prob[:,2].squeeze() # (rois,)
       cls_prob_bg = cls_prob[:,0].squeeze()
       # pdb.set_trace()
       # print(cls_prob)
