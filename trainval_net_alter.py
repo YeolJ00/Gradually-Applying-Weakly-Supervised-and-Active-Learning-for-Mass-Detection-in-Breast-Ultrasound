@@ -309,13 +309,13 @@ if __name__ == '__main__':
     # setting to train mode
     fasterRCNN.train()
     start = time.time()
-    # alpha = 1 - (0.99 * (0.9**(step / 2000)))
+    alpha = 1 - (0.99 * (0.9**(step / 2000)))
     # alpha = 0.01 + 0.99 * (step/80000.)
-    alpha = 0.01 + 0.99 * ((step/args.max_iter)**args.gamma_for_alpha)
+    # alpha = 0.01 + 0.99 * ((step/args.max_iter)**args.gamma_for_alpha)
 
     if step % train_size_s == 0:
       data_iter_s = iter(dataloader_s)
-    if step % train_size_ws == 0:
+    if step % (train_size_ws/2) == 0:
       data_iter_ws = iter(dataloader_ws)
 
     data = next(data_iter_s)
@@ -338,7 +338,7 @@ if __name__ == '__main__':
     # rois_label : (batch*rois)
   
     # 15 is for bbox loss balance
-    loss = rpn_loss_cls_s.mean() + 15 * rpn_loss_box_s.mean() \
+    loss = rpn_loss_cls_s.mean() + 10 * rpn_loss_box_s.mean() \
         + RCNN_loss_cls_s.mean() + RCNN_loss_bbox_s.mean()
 
     data = next(data_iter_ws)
@@ -359,9 +359,22 @@ if __name__ == '__main__':
     # bbox_pred : (batch, rois, 4)
     # rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox : single value
     # rois_label : (batch*rois)
-  
-    # class balance needed
     loss += alpha * RCNN_loss_cls_ws.mean()
+
+    # if step % (train_size_ws/2 +1) != train_size_ws/2:
+    #   data = next(data_iter_ws)
+    #   with torch.no_grad():
+    #     im_data.resize_(data[0].size()).copy_(data[0])
+    #     im_info.resize_(data[1].size()).copy_(data[1])
+    #     gt_boxes.resize_(data[2].size()).copy_(data[2])
+    #     num_boxes.resize_(data[3].size()).copy_(data[3])
+    #     im_label.resize_(data[4].size()).copy_(data[4])
+    #   # fasterRCNN.zero_grad()
+    #   rois, cls_prob, bbox_pred, \
+    #   rpn_loss_cls_ws, rpn_loss_box_ws, \
+    #   RCNN_loss_cls_ws, RCNN_loss_bbox_ws, \
+    #   rois_label_ws = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = True)
+    #   loss += alpha * RCNN_loss_cls_ws.mean()
 
     # backward
     optimizer.zero_grad()
@@ -381,7 +394,7 @@ if __name__ == '__main__':
         loss_rcnn_cls_ws = alpha * RCNN_loss_cls_ws.mean().item()
       else:
         loss_rpn_cls_s = rpn_loss_cls_s.item()
-        loss_rpn_box_s = 15 * rpn_loss_box_s.item()
+        loss_rpn_box_s = 10 * rpn_loss_box_s.item()
         loss_rcnn_cls_s = RCNN_loss_cls_s.item()
         loss_rcnn_box_s = RCNN_loss_bbox_s.item()
         loss_rcnn_cls_ws = alpha * RCNN_loss_cls_ws.item()

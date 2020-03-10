@@ -141,26 +141,26 @@ class _fasterRCNN(nn.Module):
       # classification loss
       # cls_prob_ws = cls_prob[:,(im_label+1).long()].squeeze() # (rois,)
       cls_prob_ws = cls_prob[:,2].squeeze() # (rois,)
-      cls_prob_bg = cls_prob[:,0].squeeze()
+      # cls_prob_bg = cls_prob[:,0].squeeze()
       # pdb.set_trace()
       # print(cls_prob)
       # print(cls_prob_ws.shape)
       # print(cls_prob_ws)
       chosen_roi = torch.argmax(cls_prob_ws, dim = 0)
       rois_label = torch.FloatTensor([im_label+1.0]) # (rois,)
-      _cls_score = cls_score[chosen_roi].unsqueeze_(0) # (1,3)
+      cls_score = cls_score[chosen_roi].unsqueeze_(0) # (1,3)
 
       # negative sample with least malignant
-      chosen_bg = torch.argmin(cls_prob_ws, dim = 0)
-      bg_score = cls_score[chosen_bg].unsqueeze_(0)
-      cls_score = torch.cat((_cls_score,bg_score), dim = 0)
-      rois_label = torch.FloatTensor([im_label+1.0, 0])
+      # chosen_bg = torch.argmin(cls_prob_ws, dim = 0)
+      # bg_score = cls_score[chosen_bg].unsqueeze_(0)
+      # cls_score = torch.cat((_cls_score,bg_score), dim = 0)
+      # rois_label = torch.FloatTensor([im_label+1.0, 0])
 
       rois_label = Variable(rois_label.view(-1).long().cuda(), requires_grad = False)
       # pdb.set_trace()
       # print(rois_label.shape)
       # print(cls_score.shape)
-      class_weight = torch.FloatTensor([1 , 1./(1-cfg.TRAIN.WS_MAL_PCT), 1./cfg.TRAIN.WS_MAL_PCT]).cuda()
+      class_weight = torch.FloatTensor([0 , cfg.TRAIN.WS_MAL_PCT, 1 - cfg.TRAIN.WS_MAL_PCT]).cuda()
       class_weight = Variable(class_weight, requires_grad = False)
       RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
     if self.training and is_ws == False:
@@ -188,9 +188,9 @@ class _fasterRCNN(nn.Module):
       if truncated:
         m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean) # not a perfect approximation
       else:
-        torch.nn.init.xavier_normal_(m.weight)
-        # m.weight.data.normal_(mean, stddev)
-        # m.bias.data.zero_()
+        # torch.nn.init.xavier_normal_(m.weight)
+        m.weight.data.normal_(mean, stddev)
+        m.bias.data.zero_()
     
       
     def weight_Sequential(m):

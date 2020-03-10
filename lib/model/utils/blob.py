@@ -57,6 +57,18 @@ def prep_im_for_blob(im, pixel_means, target_size, max_size, is_ws, training):
 
     #XXX modified: apply augmentation
     im = im.astype(np.float32, copy=False) / 255.
+
+    if is_ws:
+        if cfg.TRAIN.USE_ROTATION:
+            im = skimage.transform.rotate(im, np.random.uniform(-cfg.TRAIN.ROTATION_MAX_ANGLE,cfg.TRAIN.ROTATION_MAX_ANGLE), cval=pixel_means[0][0][0]/255.)
+                                
+        if cfg.TRAIN.USE_CROPPING:
+            offsets_u = np.random.random_integers(0,cfg.TRAIN.CROPPING_MAX_MARGIN*im.shape[0])
+            offsets_d = np.random.random_integers(1,cfg.TRAIN.CROPPING_MAX_MARGIN*im.shape[0])
+            offsets_l = np.random.random_integers(0,cfg.TRAIN.CROPPING_MAX_MARGIN*im.shape[1])
+            offsets_r = np.random.random_integers(1,cfg.TRAIN.CROPPING_MAX_MARGIN*im.shape[1])
+            im = im[offsets_u:-offsets_d,offsets_l:-offsets_r,:]
+
     if training:
         if cfg.TRAIN.USE_BRIGHTNESS_ADJUSTMENT:
             im += np.random.uniform(-cfg.TRAIN.BRIGHTNESS_ADJUSTMENT_MAX_DELTA,cfg.TRAIN.BRIGHTNESS_ADJUSTMENT_MAX_DELTA)
