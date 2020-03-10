@@ -195,7 +195,7 @@ class _fasterRCNN(nn.Module):
       
     def weight_Sequential(m):
       if type(m) == nn.Linear:
-        m.weight.data.normal_(0, 0.001)
+        m.weight.data.normal_(0, 0.01)
     
 
     normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.TRUNCATED)
@@ -203,7 +203,7 @@ class _fasterRCNN(nn.Module):
     normal_init(self.RCNN_rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.TRUNCATED)
     normal_init(self.RCNN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
     normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
-    # self.RCNN_top.apply(weight_Sequential)
+    self.RCNN_top.apply(weight_Sequential)
 
   def create_architecture(self):
     self._init_modules()
