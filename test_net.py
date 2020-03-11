@@ -275,6 +275,11 @@ if __name__ == '__main__':
 
     scores = scores.squeeze() # (rois, num_class)
     pred_boxes = pred_boxes.squeeze() # (rois, 4*cls)
+
+    # torch.set_printoptions(threshold=1000)
+    # pdb.set_trace()
+    # print(pred_boxes)
+
     det_toc = time.time()
     detect_time = det_toc - det_tic
     misc_tic = time.time()

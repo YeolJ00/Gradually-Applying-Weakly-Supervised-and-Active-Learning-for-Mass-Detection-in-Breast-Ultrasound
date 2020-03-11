@@ -8,6 +8,7 @@ from model.utils.config import cfg
 from .proposal_layer import _ProposalLayer
 from .anchor_target_layer import _AnchorTargetLayer
 from model.utils.net_utils import _smooth_l1_loss_3d
+from model.utils.net_utils import _smooth_l1_loss
 from .focal_loss import FocalLoss2d
 
 import numpy as np
@@ -125,14 +126,14 @@ class _RPN(nn.Module):
             rpn_bbox_outside_weights = Variable(rpn_bbox_outside_weights)
             rpn_bbox_targets = Variable(rpn_bbox_targets)
 
-            # self.rpn_loss_box = _smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
-            #                                                 rpn_bbox_outside_weights, sigma=3, dim=[1,2,3])#(1, 9, H, W)
+            self.rpn_loss_box = _smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
+                                                            rpn_bbox_outside_weights, sigma=3, dim=[1,2,3])#(1, 9, H, W)
             
-            _rpn_loss_box = _smooth_l1_loss_3d(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
-                                                            rpn_bbox_outside_weights, sigma=3)
-            _rpn_loss_box = _rpn_loss_box.view(batch_size, 9, -1)
-            _rpn_loss_box = torch.where(_rpn_label == 1, _rpn_loss_box, torch.FloatTensor([0]).cuda()) #(1, 9, H*W)
-            self.rpn_loss_box = _rpn_loss_box.sum(2).mean()
+            # _rpn_loss_box = _smooth_l1_loss_3d(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
+            #                                                 rpn_bbox_outside_weights, sigma=3)
+            # _rpn_loss_box = _rpn_loss_box.view(batch_size, 9, -1)
+            # _rpn_loss_box = torch.where(_rpn_label == 1, _rpn_loss_box, torch.FloatTensor([0]).cuda()) #(1, 9, H*W)
+            # self.rpn_loss_box = _rpn_loss_box.sum(2).mean()
 
         return rois, self.rpn_loss_cls, self.rpn_loss_box
         # rois : proposals sent to faster_rcnn (batch, nms_top_n, 5) 5 is (batch#,x,y,x,y)

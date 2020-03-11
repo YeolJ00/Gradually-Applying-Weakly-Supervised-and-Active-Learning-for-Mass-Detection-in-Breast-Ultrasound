@@ -276,6 +276,7 @@ if __name__ == '__main__':
   if args.optimizer == "adam":
     lr = lr * 0.1
     optimizer = torch.optim.Adam(params)
+    optimizer_ws = torch.optim.Adam(params)
 
   elif args.optimizer == "sgd":
     optimizer = torch.optim.SGD(params, momentum=cfg.TRAIN.MOMENTUM)
@@ -359,36 +360,38 @@ if __name__ == '__main__':
     # bbox_pred : (batch, rois, 4)
     # rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox : single value
     # rois_label : (batch*rois)
-    loss += alpha * RCNN_loss_cls_ws.mean()
+    loss_ws = alpha * RCNN_loss_cls_ws.mean() /2
 
-    # if step % (train_size_ws/2 +1) != train_size_ws/2:
-    #   data = next(data_iter_ws)
-    #   with torch.no_grad():
-    #     im_data.resize_(data[0].size()).copy_(data[0])
-    #     im_info.resize_(data[1].size()).copy_(data[1])
-    #     gt_boxes.resize_(data[2].size()).copy_(data[2])
-    #     num_boxes.resize_(data[3].size()).copy_(data[3])
-    #     im_label.resize_(data[4].size()).copy_(data[4])
-    #   # fasterRCNN.zero_grad()
-    #   rois, cls_prob, bbox_pred, \
-    #   rpn_loss_cls_ws, rpn_loss_box_ws, \
-    #   RCNN_loss_cls_ws, RCNN_loss_bbox_ws, \
-    #   rois_label_ws = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = True)
-    #   loss += alpha * RCNN_loss_cls_ws.mean()
+    data = next(data_iter_ws)
+    with torch.no_grad():
+      im_data.resize_(data[0].size()).copy_(data[0])
+      im_info.resize_(data[1].size()).copy_(data[1])
+      gt_boxes.resize_(data[2].size()).copy_(data[2])
+      num_boxes.resize_(data[3].size()).copy_(data[3])
+      im_label.resize_(data[4].size()).copy_(data[4])
+    # fasterRCNN.zero_grad()
+    rois, cls_prob, bbox_pred, \
+    rpn_loss_cls_ws, rpn_loss_box_ws, \
+    RCNN_loss_cls_ws_2, RCNN_loss_bbox_ws, \
+    rois_label_ws = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = True)
+    loss_ws += alpha * RCNN_loss_cls_ws_2.mean() /2
 
     # backward
     optimizer.zero_grad()
+    optimizer_ws.zero_grad()
     loss.backward()
+    loss_ws.backward()
     if args.net == "vgg16":
         clip_gradient(fasterRCNN, 10.)
     optimizer.step()
-    loss_temp += loss
+    optimizer_ws.step()
+    loss_temp += (loss + loss_ws)
     if step % args.disp_interval == 0:
       end = time.time()
       loss_temp /= args.disp_interval
       if args.mGPUs:
         loss_rpn_cls_s = rpn_loss_cls_s.mean().item()
-        loss_rpn_box_s = 15 * rpn_loss_box_s.mean().item()
+        loss_rpn_box_s = 10 * rpn_loss_box_s.mean().item()
         loss_rcnn_cls_s = RCNN_loss_cls_s.mean().item()
         loss_rcnn_box_s = RCNN_loss_bbox_s.mean().item()
         loss_rcnn_cls_ws = alpha * RCNN_loss_cls_ws.mean().item()
