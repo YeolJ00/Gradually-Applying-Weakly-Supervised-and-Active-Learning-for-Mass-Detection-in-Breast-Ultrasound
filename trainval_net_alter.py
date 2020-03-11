@@ -276,6 +276,7 @@ if __name__ == '__main__':
   if args.optimizer == "adam":
     lr = lr * 0.1
     optimizer = torch.optim.Adam(params)
+    optimizer_ws = torch.optim.Adam(params)
 
   elif args.optimizer == "sgd":
     optimizer = torch.optim.SGD(params, momentum=cfg.TRAIN.MOMENTUM)
@@ -340,6 +341,12 @@ if __name__ == '__main__':
     # 15 is for bbox loss balance
     loss = rpn_loss_cls_s.mean() + 15 * rpn_loss_box_s.mean() \
         + RCNN_loss_cls_s.mean() + RCNN_loss_bbox_s.mean()
+    # backward
+    optimizer.zero_grad()
+    loss.backward()
+    if args.net == "vgg16":
+        clip_gradient(fasterRCNN, 10.)
+    optimizer.step()
 
     data = next(data_iter_ws)
     with torch.no_grad():
@@ -361,15 +368,15 @@ if __name__ == '__main__':
     # rois_label : (batch*rois)
   
     # class balance needed
-    loss += alpha * RCNN_loss_cls_ws.mean()
+    loss_ws = alpha * RCNN_loss_cls_ws.mean()
 
-    # backward
-    optimizer.zero_grad()
-    loss.backward()
+    optimizer_ws.zero_grad()
+    loss_ws.backward()
     if args.net == "vgg16":
-        clip_gradient(fasterRCNN, 10.)
-    optimizer.step()
-    loss_temp += loss
+      clip_gradient(fasterRCNN, 10.)
+    optimizer_ws.step()
+
+    loss_temp += (loss+loss_ws)
     if step % args.disp_interval == 0:
       end = time.time()
       loss_temp /= args.disp_interval
