@@ -341,12 +341,6 @@ if __name__ == '__main__':
     # 15 is for bbox loss balance
     loss = rpn_loss_cls_s.mean() + 15 * rpn_loss_box_s.mean() \
         + RCNN_loss_cls_s.mean() + RCNN_loss_bbox_s.mean()
-    # backward
-    optimizer.zero_grad()
-    loss.backward()
-    if args.net == "vgg16":
-        clip_gradient(fasterRCNN, 10.)
-    optimizer.step()
 
     data = next(data_iter_ws)
     with torch.no_grad():
@@ -368,15 +362,15 @@ if __name__ == '__main__':
     # rois_label : (batch*rois)
   
     # class balance needed
-    loss_ws = alpha * RCNN_loss_cls_ws.mean()
+    loss += alpha * RCNN_loss_cls_ws.mean()
 
-    optimizer_ws.zero_grad()
-    loss_ws.backward()
+    optimizer.zero_grad()
+    loss.backward()
     if args.net == "vgg16":
       clip_gradient(fasterRCNN, 10.)
-    optimizer_ws.step()
+    optimizer.step()
 
-    loss_temp += (loss+loss_ws)
+    loss_temp += loss
     if step % args.disp_interval == 0:
       end = time.time()
       loss_temp /= args.disp_interval
