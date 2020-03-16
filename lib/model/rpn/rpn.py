@@ -32,12 +32,12 @@ class _RPN(nn.Module):
         # define bg/fg classifcation score layer
         self.nc_score_out = len(self.anchor_scales) * len(self.anchor_ratios) * 2 # 2(bg/fg) * 9 (anchors)
         # self.RPN_cls_score = nn.Conv2d(1024, self.nc_score_out, kernel_size = 3, stride = 1, padding =  1)
-        self.RPN_cls_score = nn.Conv2d(512, self.nc_score_out, kernel_size = 1, stride = 1, padding =  1)
+        self.RPN_cls_score = nn.Conv2d(512, self.nc_score_out, kernel_size = 1, stride = 1, padding =  0)
 
         # define anchor box offset prediction layer
         self.nc_bbox_out = len(self.anchor_scales) * len(self.anchor_ratios) * 4 # 4(coords) * 9 (anchors)
         # self.RPN_bbox_pred = nn.Conv2d(1024, self.nc_bbox_out, kernel_size = 3, stride =  1, padding = 1)
-        self.RPN_bbox_pred = nn.Conv2d(512, self.nc_bbox_out, kernel_size = 1, stride =  1, padding = 1)
+        self.RPN_bbox_pred = nn.Conv2d(512, self.nc_bbox_out, kernel_size = 1, stride =  1, padding = 0)
 
         # define proposal layer
         self.RPN_proposal = _ProposalLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios)
@@ -134,8 +134,8 @@ class _RPN(nn.Module):
             _rpn_loss_box = _smooth_l1_loss_3d(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
                                                             rpn_bbox_outside_weights, sigma=3)
             _rpn_loss_box = _rpn_loss_box.view(batch_size, 9, -1)
-            _rpn_loss_box = torch.where(_rpn_label == 1, _rpn_loss_box, torch.FloatTensor([0]).cuda()) #(1, 9, H*W)
-            self.rpn_loss_box = _rpn_loss_box.sum(2).mean()
+            # _rpn_loss_box = torch.where(_rpn_label == 1, _rpn_loss_box, torch.FloatTensor([0]).cuda()) #(1, 9, H*W)
+            self.rpn_loss_box = _rpn_loss_box.sum(2).sum(1).mean()
 
         return rois, self.rpn_loss_cls, self.rpn_loss_box
         # rois : proposals sent to faster_rcnn (batch, nms_top_n, 5) 5 is (batch#,x,y,x,y)
