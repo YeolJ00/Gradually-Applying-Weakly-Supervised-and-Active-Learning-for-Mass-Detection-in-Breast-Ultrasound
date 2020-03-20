@@ -341,12 +341,6 @@ if __name__ == '__main__':
     # 15 is for bbox loss balance
     loss = rpn_loss_cls_s.mean() + 10 * rpn_loss_box_s.mean() \
         + RCNN_loss_cls_s.mean() + RCNN_loss_bbox_s.mean()
-    # backward
-    optimizer.zero_grad()
-    loss.backward()
-    if args.net == "vgg16":
-        clip_gradient(fasterRCNN, 10.)
-    optimizer.step()
 
     data = next(data_iter_ws)
     with torch.no_grad():
@@ -366,7 +360,7 @@ if __name__ == '__main__':
     # bbox_pred : (batch, rois, 4)
     # rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox : single value
     # rois_label : (batch*rois)
-    loss_ws = alpha * RCNN_loss_cls_ws.mean() /2
+    loss += alpha * RCNN_loss_cls_ws.mean() /2
 
     data = next(data_iter_ws)
     with torch.no_grad():
@@ -380,16 +374,16 @@ if __name__ == '__main__':
     rpn_loss_cls_ws, rpn_loss_box_ws, \
     RCNN_loss_cls_ws_2, RCNN_loss_bbox_ws, \
     rois_label_ws = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = True)
-    loss_ws += alpha * RCNN_loss_cls_ws_2.mean() /2
+    loss += alpha * RCNN_loss_cls_ws_2.mean() /2
     
     #backward
-    optimizer_ws.zero_grad()
-    loss_ws.backward()
+    optimizer.zero_grad()
+    loss.backward()
     if args.net == "vgg16":
         clip_gradient(fasterRCNN, 10.)
-    optimizer_ws.step()
+    optimizer.step()
 
-    loss_temp += (loss + loss_ws)
+    loss_temp += loss
     if step % args.disp_interval == 0:
       end = time.time()
       loss_temp /= args.disp_interval

@@ -192,10 +192,16 @@ class _fasterRCNN(nn.Module):
         m.weight.data.normal_(mean, stddev)
         m.bias.data.zero_()
     
-      
-    def weight_Sequential(m):
-      if type(m) == nn.Linear:
-        m.weight.data.normal_(0, 0.01)
+    def weight_Sequential(m, mean, stddev, trauncated=False):
+      classname = m.__class__.__name__
+      if classname.find('Conv') != -1:
+        torch.nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+        # m.weight.data.normal_(0.0, 0.02)
+        # m.bias.data.fill_(0)
+      elif classname.find('BatchNorm') != -1:
+        # m.weight.data.normal_(1.0, 0.02)
+        # m.bias.data.fill_(0)
+        pass
     
 
     normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.TRUNCATED)
@@ -203,7 +209,7 @@ class _fasterRCNN(nn.Module):
     normal_init(self.RCNN_rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.TRUNCATED)
     normal_init(self.RCNN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
     normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
-    self.RCNN_top.apply(weight_Sequential)
+    weight_Sequential(self.RCNN_top, 0, 0.01, cfg.TRAIN.TRUNCATED)
 
   def create_architecture(self):
     self._init_modules()
