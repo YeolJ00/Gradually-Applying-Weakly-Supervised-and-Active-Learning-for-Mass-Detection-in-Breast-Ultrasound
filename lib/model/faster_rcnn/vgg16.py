@@ -43,7 +43,7 @@ class vgg16(_fasterRCNN):
 
     # self.RCNN_base = _RCNN_base(vgg.features, self.classes, self.dout_base_model)
 
-    # --original version
+    # # --original version
     # self.RCNN_top = vgg.classifier
 
     # # not using the last maxpool layer

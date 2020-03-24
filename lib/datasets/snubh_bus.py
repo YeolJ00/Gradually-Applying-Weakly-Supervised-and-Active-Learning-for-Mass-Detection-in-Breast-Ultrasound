@@ -184,6 +184,7 @@ class snubh_bus(imdb):
         # recs need to be accessed by imagename(file name)
         # recs[ith imagename] = ith image's object list
         # recs == gt_boxes list
+        lesion_detected = 0
         box_over_object = 0 # predicted a box on an object
         cor_box_over_object = 0# predicted correct class box on object
         box_over_background_n = 0
@@ -205,6 +206,7 @@ class snubh_bus(imdb):
             gt_box = torch.FloatTensor(recs[imagename][0]['bbox']) # assumes only one object exists as gt
             gt_cls = self._class_to_ind_image[recs[imagename][0]['name']]
             # Variables for checking thesis, Irrelavant to test----
+            image_detected = False
             _num_boxes_per_image = 0
             _only_cls_score = 0
             _only_iou = 0
@@ -228,6 +230,7 @@ class snubh_bus(imdb):
                             inters)
                     iou = inters/uni
                     if iou > 0.5 and cls_prob > thresh:# Threshold for detection
+                        image_detected = True
                         box_over_object += 1
                         if cls_idx == gt_cls and cls_prob>0.5:
                             cor_box_over_object += 1
@@ -237,13 +240,15 @@ class snubh_bus(imdb):
                         _num_boxes_per_image += 1
                         _only_cls_score = cls_prob
                         _only_iou = iou
+            if image_detected:
+                lesion_detected += 1
             if _num_boxes_per_image == 1:
                 with open(logdir+'/thesis.txt','a') as f:
                     f.write('{:.3f},{:.3f}\n'.format(_only_cls_score, _only_iou.item()))
         # Finished counting for the whole dataset
         box_over_background = all_detected_boxes - box_over_object
         with open(logfile, 'a') as f:
-            f.write('{},{},{},{},{}\n'.format(box_over_object, all_object, cor_box_over_object, all_detected_boxes,box_over_background))
+            f.write('{},{},{},{},{},{}\n'.format(box_over_object, lesion_detected, all_object, cor_box_over_object, all_detected_boxes,box_over_background))
                     
 
     def parse_rec(self, filename):
