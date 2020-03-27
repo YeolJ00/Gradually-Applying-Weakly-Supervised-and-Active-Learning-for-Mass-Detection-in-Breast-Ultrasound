@@ -339,7 +339,7 @@ if __name__ == '__main__':
     # rois_label : (batch*rois)
   
     # 15 is for bbox loss balance
-    loss = rpn_loss_cls_s.mean() + 10 * rpn_loss_box_s.mean() \
+    loss = rpn_loss_cls_s.mean() + rpn_loss_box_s.mean() \
         + RCNN_loss_cls_s.mean() + RCNN_loss_bbox_s.mean()
 
     data = next(data_iter_ws)
@@ -389,13 +389,13 @@ if __name__ == '__main__':
       loss_temp /= args.disp_interval
       if args.mGPUs:
         loss_rpn_cls_s = rpn_loss_cls_s.mean().item()
-        loss_rpn_box_s = 10 * rpn_loss_box_s.mean().item()
+        loss_rpn_box_s = rpn_loss_box_s.mean().item()
         loss_rcnn_cls_s = RCNN_loss_cls_s.mean().item()
         loss_rcnn_box_s = RCNN_loss_bbox_s.mean().item()
         loss_rcnn_cls_ws = alpha * RCNN_loss_cls_ws.mean().item()
       else:
         loss_rpn_cls_s = rpn_loss_cls_s.item()
-        loss_rpn_box_s = 10 * rpn_loss_box_s.item()
+        loss_rpn_box_s = rpn_loss_box_s.item()
         loss_rcnn_cls_s = RCNN_loss_cls_s.item()
         loss_rcnn_box_s = RCNN_loss_bbox_s.item()
         loss_rcnn_cls_ws = alpha * RCNN_loss_cls_ws.item()
