@@ -197,7 +197,7 @@ class snubh_bus(imdb):
         for i in all_boxes[1:]:
             for j in i:
                 all_detected_boxes += len(np.where(np.asarray(j)[:,-1] > thresh)[0])# npwhere returns a tuple thus add [0]
-        all_detected_boxes += box_over_background_n
+        # all_detected_boxes += box_over_background_n
         # all_detected_boxes = len(torch.FloatTensor(all_boxes).view(-1,5)) + box_over_background_n
 
         for i, imagename in enumerate(imagenames):
@@ -248,7 +248,7 @@ class snubh_bus(imdb):
         # Finished counting for the whole dataset
         box_over_background = all_detected_boxes - box_over_object
         with open(logfile, 'a') as f:
-            f.write('{},{},{},{},{},{}\n'.format(box_over_object, lesion_detected, all_object, cor_box_over_object, all_detected_boxes,box_over_background))
+            f.write('{},{},{},{},{},{}\n'.format(box_over_object, lesion_detected, all_object, cor_box_over_object, all_detected_boxes,box_over_background_n))
                     
 
     def parse_rec(self, filename):
