@@ -163,7 +163,7 @@ class _fasterRCNN(nn.Module):
       class_weight = torch.FloatTensor([0 , cfg.TRAIN.WS_MAL_PCT, 1 - cfg.TRAIN.WS_MAL_PCT]).cuda()
       class_weight = Variable(class_weight, requires_grad = False)
       RCNN_loss_cls = F.cross_entropy(cls_score, rois_label, class_weight)
-    if self.training and is_ws == False:
+    if self.training and not is_ws:
       # bounding box regression L1 loss
       # fg = max(1, fg_rois_per_this_image)
       # bg = max(1, cfg.TRAIN.BATCH_SIZE - fg_rois_per_this_image)
@@ -187,6 +187,7 @@ class _fasterRCNN(nn.Module):
       # x is a parameter
       if truncated:
         m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean) # not a perfect approximation
+        m.bias.data.zero_()
       else:
         # torch.nn.init.xavier_normal_(m.weight)
         m.weight.data.normal_(mean, stddev)
@@ -196,8 +197,12 @@ class _fasterRCNN(nn.Module):
       classname = m.__class__.__name__
       if classname.find('Linear') != -1:
         # torch.nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
-        m.weight.data.normal_(0.0, 0.01)
-        m.bias.data.fill_(0)
+        m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean) # not a perfect approximation
+        m.bias.data.zero_()
+      elif classname.find('Conv') != -1:
+        # torch.nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+        m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean) # not a perfect approximation
+        m.bias.data.zero_()
       elif classname.find('BatchNorm') != -1:
         # m.weight.data.normal_(1.0, 0.02)
         # m.bias.data.fill_(0)
