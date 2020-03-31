@@ -279,7 +279,10 @@ __C.DEDUP_BOXES = 1. / 16.
 # Pixel mean values (BGR order) as a (1, 1, 3) array
 # We use the same pixel mean for all networks even though it's not exactly what
 # they were trained with
-__C.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
+__C.PIXEL_MEANS = np.array([[[68.274, 68.274, 68.274]]]) # for BUS images
+#__C.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
+
+__C.PIXEL_STDS = np.array([[[52.802, 52.802, 52.802]]]) # for BUS images
 
 # For reproducibility
 __C.RNG_SEED = 3
