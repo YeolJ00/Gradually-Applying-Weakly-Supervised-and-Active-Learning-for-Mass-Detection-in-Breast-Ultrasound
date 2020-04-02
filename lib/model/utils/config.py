@@ -95,7 +95,7 @@ __C.TRAIN.USE_ROTATION = True
 __C.TRAIN.ROTATION_MAX_ANGLE = 5
 
 # Use cropped images during training
-__C.TRAIN.USE_CROPPING = False
+__C.TRAIN.USE_CROPPING = True
 __C.TRAIN.CROPPING_MAX_MARGIN = 0.05 # in ratio
 
 # Use brightness adjusted images during training
