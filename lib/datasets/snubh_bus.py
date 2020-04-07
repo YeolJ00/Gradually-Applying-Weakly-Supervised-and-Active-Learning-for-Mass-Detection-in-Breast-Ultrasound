@@ -12,6 +12,7 @@ import os, sys
 from datasets.imdb import imdb
 import xml.dom.minidom as minidom
 import xml.etree.ElementTree as ET
+from xml.etree.ElementTree import Element, SubElement, ElementTree
 import numpy as np
 import scipy.sparse
 import subprocess
@@ -27,6 +28,7 @@ class snubh_bus(imdb):
         self._classes_image = ('__background__','benign','malignant')
         self._classes = ('__background__','benign','malignant')
         self._class_to_ind_image = dict(zip(self._classes_image, range(3)))
+        self._ind_to_class_image = dict(zip(range(3),self._classes_image))
 
         self._image_ext = ['.tiff']
 
@@ -102,7 +104,10 @@ class snubh_bus(imdb):
         """
         Load image and bounding boxes info from txt files of imagenet.
         """
-        filename = os.path.join(self._data_path, 'Annotations', index + '.xml')
+        if self._image_set == 'al_train':
+            filename = os.path.join(self._data_path, 'Annotations', index + '_AL.xml')
+        else:
+            filename = os.path.join(self._data_path, 'Annotations', index + '.xml')
 
         # print 'Loading: {}'.format(filename)
         def get_data_from_tag(node, tag):
@@ -144,6 +149,79 @@ class snubh_bus(imdb):
                 'flipped' : False,
                 'im_label': label,
                 'file_name': file_name}
+
+    def active_learning(self, all_boxes, thresh = 0.7, prob = 0.5):
+        # all_boxes : (cls, image, boxes, 5) 5 = (x, y, x, y, cls_prob)
+        # all_boxes_n:(cls, image_n, boxes, 5)
+        # Call all annotations
+        annopath = os.path.join(self._data_path,'Annotations','{:s}.xml')
+        imagesetfile = os.path.join(self._data_path,'ImageSets','Main',self._image_set + '.txt')
+        cachedir = os.path.join(self._data_path, 'annotations_cache')
+        al_imageset_dir = os.path.join(self._data_path,'ImageSets','Main')
+        al_imageset_file = os.path.join(al_imageset_dir,'al_train.txt')
+        al_annot_file = os.path.join(self._data_path)
+
+        if not os.path.isdir(al_imageset_dir):
+            os.mkdir(al_imageset_dir)
+        if not os.path.isdir(cachedir):
+            os.mkdir(cachedir)
+        cachefile = os.path.join(cachedir, 'ws_train_annots.pkl')
+        # read list of images
+        with open(imagesetfile, 'r') as f:
+            lines = f.readlines()
+        imagenames = [x.strip() for x in lines]
+
+        if not os.path.isfile(cachefile): # loads and save annotations
+            recs = {}
+            sizes = {}
+            for i, imagename in enumerate(imagenames):
+                recs[imagename] = self.parse_ws(annopath.format(imagename))
+            if i % 100 == 0:
+                print('Reading annotation for {:d}/{:d}'.format(
+                i + 1, len(imagenames)))
+            print('Saving cached annotations to {:s}'.format(cachefile))
+            with open(cachefile, 'wb') as f:
+                pickle.dump(recs, f)
+        else: # load
+            with open(cachefile, 'rb') as f:
+                try:
+                    recs = pickle.load(f)
+                except:
+                    recs = pickle.load(f, encoding='bytes')
+        # recs need to be accessed by imagename(file name)
+        # recs[ith imagename] = ith image's object list
+        # recs == gt_boxes list
+
+        uniform = torch.distributions.uniform.Uniform(0,1)
+        with open(al_imageset_file,'w') as f:
+            for i, imagename in enumerate(imagenames):
+                # pred_boxes_cls = all_boxes[:,i,:,:]
+                pred_boxes_cls = np.asarray(all_boxes)[:,i]
+                gt_cls = int(recs[imagename]['diag']) + 1
+                # Variables for checking thesis, Irrelavant to test----
+                highest_cls_prob = 0
+                highest_xmin = 0
+                highest_xmax = 0
+                highest_ymin = 0
+                highest_ymax = 0
+                pred_boxes = pred_boxes_cls[gt_cls].reshape(-1,5)
+                for roi_idx in range(len(pred_boxes)):
+                    roi = torch.from_numpy(pred_boxes[roi_idx][:4])
+                    cls_prob = pred_boxes[roi_idx][-1]                    
+                    if highest_cls_prob < cls_prob:
+                        highest_cls_prob = cls_prob
+                        highest_xmin = int(np.round(roi[0].cpu().numpy()))
+                        highest_ymin = int(np.round(roi[1].cpu().numpy()))
+                        highest_xmax = int(np.round(roi[2].cpu().numpy()))
+                        highest_ymax = int(np.round(roi[3].cpu().numpy()))
+                # Variables for checking thesis, Irrelavant to test----
+                
+                if highest_cls_prob > thresh and uniform.sample() <= prob:
+                    f.write('{}\n'.format(imagename))
+                    obj = {}
+                    obj['name'] = self._ind_to_class_image[gt_cls]
+                    obj['bndbox'] = [highest_xmin,highest_ymin,highest_xmax,highest_ymax]
+                    self.write_annotation(annopath.format(imagename+"_AL"), imagename, recs[imagename], obj)
 
     def evaluate_detections(self, all_boxes, all_boxes_n, output_dir, thresh):
         # all_boxes : (cls, image, boxes, 5) 5 = (x, y, x, y, cls_prob)
@@ -207,10 +285,7 @@ class snubh_bus(imdb):
             gt_cls = self._class_to_ind_image[recs[imagename][0]['name']]
             # Variables for checking thesis, Irrelavant to test----
             image_detected = False
-            _num_boxes_per_image = 0
-            _only_cls_score = 0
-            _only_iou = 0
-
+            highest_cls_prob = 0
             for cls_idx in range(1,self.num_classes):
                 pred_boxes = pred_boxes_cls[cls_idx].reshape(-1,5)
                 # pdb.set_trace()
@@ -235,21 +310,35 @@ class snubh_bus(imdb):
                         if cls_idx == gt_cls and cls_prob>0.5:
                             cor_box_over_object += 1
                     
-                    # Variables for checking thesis, Irrelavant to test----
-                    if cls_prob > thresh:
-                        _num_boxes_per_image += 1
-                        _only_cls_score = cls_prob
-                        _only_iou = iou
+                    if cls_idx == gt_cls and highest_cls_prob < cls_prob:
+                        highest_cls_prob = cls_prob
+                        highest_box_iou = iou
+                    
+                # Variables for checking thesis, Irrelavant to test----
+                if highest_cls_prob > thresh and cls_idx == gt_cls:
+                    with open(logdir+'/thesis.txt','a') as f:
+                        f.write('{:.3f},{:.3f}\n'.format(highest_cls_prob, highest_box_iou.item()))
+
             if image_detected:
                 lesion_detected += 1
-            if _num_boxes_per_image == 1:
-                with open(logdir+'/thesis.txt','a') as f:
-                    f.write('{:.3f},{:.3f}\n'.format(_only_cls_score, _only_iou.item()))
         # Finished counting for the whole dataset
         box_over_background = all_detected_boxes - box_over_object
         with open(logfile, 'a') as f:
             f.write('{},{},{},{},{},{}\n'.format(box_over_object, lesion_detected, all_object, cor_box_over_object, all_detected_boxes,box_over_background_n))
-                    
+
+    def parse_ws(self, filename):
+        """Parse BIRADS from xml file """
+        tree = ET.parse(filename)
+        birads = tree.find('BIRADS')
+        size = tree.find('size')
+
+        recs = {}
+        recs['diag'] = birads.find('diag').text
+        recs['width'] = size.find('width').text
+        recs['height'] = size.find('height').text
+        recs['depth'] = size.find('depth').text
+
+        return recs
 
     def parse_rec(self, filename):
         """ Parse a PASCAL VOC xml file """
@@ -268,3 +357,50 @@ class snubh_bus(imdb):
             objects.append(obj_struct)
 
         return objects # list of dictionaries
+
+    def write_annotation(self, file_path, filename, recs, obj):
+        with open(file_path,'w') as f:
+            root = Element('annotation')
+            SubElement(root, 'folder').text = 'BUS'
+            SubElement(root, 'filename').text = filename + '.tif'
+            SubElement(root, 'source')
+
+            size = SubElement(root, 'size')
+            SubElement(size, 'width').text = str(recs['width'])
+            SubElement(size, 'height').text = str(recs['height'])
+            SubElement(size, 'depth').text = str(recs['depth'])
+
+            birads = SubElement(root, 'BIRADS')
+            SubElement(birads,'diag').text = recs['diag']
+            
+            SubElement(root, 'segmented').text = '0'
+
+            objects = SubElement(root, 'object')
+            SubElement(objects, 'name').text = obj['name']
+            SubElement(objects, 'pose')
+            SubElement(objects, 'truncated').text = '1'
+            SubElement(objects, 'difficult')
+            
+            bbox = SubElement(objects, 'bndbox')
+            SubElement(bbox, 'xmin').text = str(obj['bndbox'][0])
+            SubElement(bbox, 'ymin').text = str(obj['bndbox'][1])
+            SubElement(bbox, 'xmax').text = str(obj['bndbox'][2])
+            SubElement(bbox, 'ymax').text = str(obj['bndbox'][3])
+
+            def indent(elements, level=0):
+                i = "\n" + level * " "
+                if len(elements):
+                    if not elements.text or not elements.text.strip():
+                        elements.text = i + " "
+                    if not elements.tail or not elements.tail.strip():
+                        elements.tail = i
+                    for elements in elements:
+                        indent(elements, level+1)
+                    if not elements.tail or not elements.tail.strip():
+                        elements.tail = i
+                else:
+                    if level and (not elements.tail or not elements.tail.strip()):
+                        elements.tail = i
+            indent(root)
+            tree = ElementTree(root)
+            tree.write(file_path)

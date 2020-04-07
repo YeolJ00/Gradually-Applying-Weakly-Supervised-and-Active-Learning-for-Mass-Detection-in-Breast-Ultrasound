@@ -80,6 +80,9 @@ def parse_args():
   parser.add_argument('--cag', dest='class_agnostic',
             help='whether to perform class_agnostic bbox regression',
             action='store_true')
+  parser.add_argument('--al', dest='active_learning',
+            help='whether to use active learning dataset',
+            action='store_true')
 
 # config optimization
   parser.add_argument('--o', dest='optimizer',
@@ -188,15 +191,21 @@ if __name__ == '__main__':
   cfg.TRAIN.USE_FLIPPED = True
   cfg.USE_GPU_NMS = args.cuda
 
+  if args.active_learning:
+    imdb_al, roidb_al, ratio_list_al, ratio_index_al = combined_roidb(args.imdb_name + '_al_train')
   imdb_s, roidb_s, ratio_list_s, ratio_index_s = combined_roidb(args.imdb_name + '_s_train')
   imdb_ws, roidb_ws, ratio_list_ws, ratio_index_ws = combined_roidb(args.imdb_name + '_ws_train')
   # imdb : instance of image db = snubh_bus
   # roidb: list of dictionaries
 
+  if args.active_learning:
+    train_size_al = len(roidb_al)
   train_size_s = len(roidb_s)
   train_size_ws = len(roidb_ws)
   # train_size = number of images
   
+  if args.active_learning:
+    print('{:d} active learning roidb entries'.format(len(roidb_al)))
   print('{:d} strong roidb entries'.format(len(roidb_s)))
   print('{:d} weak roidb entries'.format(len(roidb_ws)))
 
@@ -204,6 +213,8 @@ if __name__ == '__main__':
   if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
+  if args.active_learning:
+    sampler_batch_al = sampler(train_size_al, args.batch_size)
   sampler_batch_s = sampler(train_size_s, args.batch_size)
   sampler_batch_ws = sampler(train_size_ws, args.batch_size)
 
@@ -211,6 +222,12 @@ if __name__ == '__main__':
                  imdb_s.num_classes, is_ws= False, training=True)
   dataloader_s = torch.utils.data.DataLoader(dataset_s, batch_size=args.batch_size, 
                 sampler=sampler_batch_s, num_workers=args.num_workers)
+
+  if args.active_learning:
+    dataset_al = roibatchLoader(roidb_al, ratio_list_al, ratio_index_al, args.batch_size, \
+                  imdb_al.num_classes, is_ws= False, training=True)
+    dataloader_al = torch.utils.data.DataLoader(dataset_al, batch_size=args.batch_size, 
+                  sampler=sampler_batch_al, num_workers=args.num_workers)
 
   dataset_ws = roibatchLoader(roidb_ws, ratio_list_ws, ratio_index_ws, args.batch_size,
                 imdb_ws.num_classes, is_ws = True, training=True)
@@ -304,17 +321,19 @@ if __name__ == '__main__':
     from tensorboardX import SummaryWriter
     logger = SummaryWriter("logs")
 
+  start = time.time()
   loss_temp = 0
   for step in range(args.max_iter + 1):
     # setting to train mode
     fasterRCNN.train()
-    start = time.time()
     # alpha = 1 - (0.99 * (0.9**(step / 2000)))
     # alpha = 0.01 + 0.99 * (step/80000.)
     alpha = 0.01 + 0.99 * ((step/args.max_iter)**args.gamma_for_alpha)
 
     if step % train_size_s == 0:
       data_iter_s = iter(dataloader_s)
+    if args.active_learning and step % train_size_al == 0:
+        data_iter_al = iter(dataloader_al)
     if step % train_size_ws == 0:
       data_iter_ws = iter(dataloader_ws)
 
@@ -330,7 +349,7 @@ if __name__ == '__main__':
     rois, cls_prob, bbox_pred, \
     rpn_loss_cls_s, rpn_loss_box_s, \
     RCNN_loss_cls_s, RCNN_loss_bbox_s, \
-    rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = False) # fasterRCNN is a network instance, __call__ calls forward in faster_rcnn.py
+    rois_label_s = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = False) # fasterRCNN is a network instance, __call__ calls forward in faster_rcnn.py
     # rois : (batch, rois, 5)
     # cls_prob : (batch, rois, C)
     # bbox_pred : (batch, rois, 4)
@@ -340,6 +359,29 @@ if __name__ == '__main__':
     # 15 is for bbox loss balance
     loss = rpn_loss_cls_s.mean() + rpn_loss_box_s.mean() \
         + RCNN_loss_cls_s.mean() + RCNN_loss_bbox_s.mean()
+
+    if args.active_learning:
+      data = next(data_iter_al)
+      with torch.no_grad():
+        im_data.resize_(data[0].size()).copy_(data[0])
+        im_info.resize_(data[1].size()).copy_(data[1])
+        gt_boxes.resize_(data[2].size()).copy_(data[2])
+        num_boxes.resize_(data[3].size()).copy_(data[3])
+        im_label.resize_(data[4].size()).copy_(data[4])  
+
+      fasterRCNN.zero_grad()
+      rois, cls_prob, bbox_pred, \
+      rpn_loss_cls_al, rpn_loss_box_al, \
+      RCNN_loss_cls_al, RCNN_loss_bbox_al, \
+      rois_label_al = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = False) # fasterRCNN is a network instance, __call__ calls forward in faster_rcnn.py
+      # rois : (batch, rois, 5)
+      # cls_prob : (batch, rois, C)
+      # bbox_pred : (batch, rois, 4)
+      # rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox : single value
+      # rois_label : (batch*rois)
+    
+      loss += ( rpn_loss_cls_al.mean() + rpn_loss_box_al.mean() \
+          + RCNN_loss_cls_al.mean() + RCNN_loss_bbox_al.mean())
 
     data = next(data_iter_ws)
     with torch.no_grad():
@@ -359,8 +401,6 @@ if __name__ == '__main__':
     # bbox_pred : (batch, rois, 4)
     # rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox : single value
     # rois_label : (batch*rois)
-  
-    # class balance needed
     loss += alpha * RCNN_loss_cls_ws.mean()
 
     # backward
@@ -374,25 +414,42 @@ if __name__ == '__main__':
       end = time.time()
       loss_temp /= args.disp_interval
       if args.mGPUs:
+        if args.active_learning:
+          loss_rpn_cls_al = rpn_loss_cls_al.mean().item()
+          loss_rpn_box_al = rpn_loss_box_al.mean().item()
+          loss_rcnn_cls_al = RCNN_loss_cls_al.mean().item()
+          loss_rcnn_box_al = RCNN_loss_bbox_al.mean().item()
         loss_rpn_cls_s = rpn_loss_cls_s.mean().item()
         loss_rpn_box_s = rpn_loss_box_s.mean().item()
         loss_rcnn_cls_s = RCNN_loss_cls_s.mean().item()
         loss_rcnn_box_s = RCNN_loss_bbox_s.mean().item()
         loss_rcnn_cls_ws = alpha * RCNN_loss_cls_ws.mean().item()
       else:
-        loss_rpn_cls_s = rpn_loss_cls_s.item()
-        loss_rpn_box_s = rpn_loss_box_s.item()
-        loss_rcnn_cls_s = RCNN_loss_cls_s.item()
-        loss_rcnn_box_s = RCNN_loss_bbox_s.item()
-        loss_rcnn_cls_ws = alpha * RCNN_loss_cls_ws.item()
-      fg_cnt = torch.sum(rois_label.data.ne(0))
-      bg_cnt = rois_label.data.numel() - fg_cnt
+        if args.active_learning:
+          loss_rpn_cls_al = rpn_loss_cls_al.mean().item()
+          loss_rpn_box_al = rpn_loss_box_al.mean().item()
+          loss_rcnn_cls_al = RCNN_loss_cls_al.mean().item()
+          loss_rcnn_box_al = RCNN_loss_bbox_al.mean().item()
+        loss_rpn_cls_s = rpn_loss_cls_s.mean().item()
+        loss_rpn_box_s = rpn_loss_box_s.mean().item()
+        loss_rcnn_cls_s = RCNN_loss_cls_s.mean().item()
+        loss_rcnn_box_s = RCNN_loss_bbox_s.mean().item()
+        loss_rcnn_cls_ws = alpha * RCNN_loss_cls_ws.mean().item()
+
+      fg_cnt_s = torch.sum(rois_label_s.data.ne(0))
+      bg_cnt_s = rois_label_s.data.numel() - fg_cnt_s
+      fg_cnt_al = torch.sum(rois_label_al.data.ne(0))
+      bg_cnt_al = rois_label_al.data.numel() - fg_cnt_al
 
       print("[session %d][iter %4d/%4d] loss: %.4f, lr: %.2e" \
                               % (args.session, step, args.max_iter, loss_temp, lr))
-      print("\t\t\tfg/bg=(%d/%d), time cost: %f" % (fg_cnt, bg_cnt, end-start))
-      print("\t\t\trpn_cls_s: %.4f, rpn_box_s: %.4f, rcnn_cls_s: %.4f, rcnn_box_s: %.4f, rcnn_cls_ws: %.4f" \
-                    % (loss_rpn_cls_s, loss_rpn_box_s, loss_rcnn_cls_s, loss_rcnn_box_s, loss_rcnn_cls_ws))
+      print("\t\t\tfg/bg=(%d/%d), time cost: %f" % (fg_cnt_s, bg_cnt_s, end-start))
+      print("\t\t\tfg/bg=(%d/%d)" % (fg_cnt_al, bg_cnt_al))
+      print("\t\t\trpn_cls_s: %.4f, rpn_box_s: %.4f,  rcnn_cls_s: %.4f,  rcnn_box_s: %.4f, \
+        \n\t\t\trpn_cls_al: %.4f, rpn_box_al: %.4f, rcnn_cls_al: %.4f, rcnn_box_al: %.4f, \
+        \n\t\t\trcnn_cls_ws: %.4f" \
+                    % (loss_rpn_cls_s, loss_rpn_box_s, loss_rcnn_cls_s, loss_rcnn_box_s,\
+                      loss_rpn_cls_al, loss_rpn_box_al, loss_rcnn_cls_al, loss_rcnn_box_al, loss_rcnn_cls_ws))
       if args.use_tfboard:
         info = {
           'loss': loss_temp,
