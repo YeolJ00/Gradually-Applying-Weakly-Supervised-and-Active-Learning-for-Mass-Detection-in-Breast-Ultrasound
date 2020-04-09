@@ -23,7 +23,7 @@ def prepare_roidb(imdb):
 
     roidb = imdb.roidb
     # roidb handler is used and saves a dictionary of the roi
-    if not (imdb.name.startswith('coco')):
+    if not (imdb.name.startswith('al')):
         cache_file = os.path.join(imdb.cache_path, imdb.name + '_sizes.pkl')
         if os.path.exists(cache_file):
             print('Image sizes loaded from %s' % cache_file)
@@ -36,6 +36,8 @@ def prepare_roidb(imdb):
             with open(cache_file, 'wb') as f:
                 pickle.dump(sizes, f)
             print('Done!!')
+    else:
+        sizes = [Image.open(imdb.image_path_at(i)).size for i in range(imdb.num_images)]
     #caches sizes of images(w x h)
              
     for i in range(len(imdb.image_index)):

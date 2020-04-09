@@ -360,6 +360,7 @@ if __name__ == '__main__':
     loss = rpn_loss_cls_s.mean() + rpn_loss_box_s.mean() \
         + RCNN_loss_cls_s.mean() + RCNN_loss_bbox_s.mean()
 
+    rpn_loss_cls_al, rpn_loss_box_al, RCNN_loss_cls_al, RCNN_loss_bbox_al = 0,0,0,0
     if args.active_learning:
       data = next(data_iter_al)
       with torch.no_grad():
@@ -410,6 +411,10 @@ if __name__ == '__main__':
         clip_gradient(fasterRCNN, 10.)
     optimizer.step()
     loss_temp += loss
+
+
+
+    loss_rpn_cls_al, loss_rpn_box_al, loss_rcnn_cls_al, loss_rcnn_box_al = 0, 0, 0, 0
     if step % args.disp_interval == 0:
       end = time.time()
       loss_temp /= args.disp_interval
@@ -438,8 +443,13 @@ if __name__ == '__main__':
 
       fg_cnt_s = torch.sum(rois_label_s.data.ne(0))
       bg_cnt_s = rois_label_s.data.numel() - fg_cnt_s
-      fg_cnt_al = torch.sum(rois_label_al.data.ne(0))
-      bg_cnt_al = rois_label_al.data.numel() - fg_cnt_al
+      if args.active_learning:
+        fg_cnt_al = torch.sum(rois_label_al.data.ne(0))
+        bg_cnt_al = rois_label_al.data.numel() - fg_cnt_al
+      else:
+        fg_cnt_al = 0
+        bg_cnt_al = 0
+
 
       print("[session %d][iter %4d/%4d] loss: %.4f, lr: %.2e" \
                               % (args.session, step, args.max_iter, loss_temp, lr))

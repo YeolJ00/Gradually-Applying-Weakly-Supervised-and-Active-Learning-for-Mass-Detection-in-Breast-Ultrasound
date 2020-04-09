@@ -90,7 +90,7 @@ def parse_args():
                       action='store_true')
   parser.add_argument('--al', dest='active_learning',
                       help='whether to write active learning files',
-                      action='store_true')
+                      default=0, type=float)
   args = parser.parse_args()
   return args
 
@@ -524,7 +524,7 @@ if __name__ == '__main__':
       sys.stdout.write('im_detect: {:d}/{:d} {:.3f}s {:.3f}s   \r' \
                       .format(i + 1, num_images_ws, detect_time, nms_time))
       sys.stdout.flush()
-    imdb_ws.active_learning(all_boxes_ws, thresh=0.7, prob = cfg.TEST.ACTIVE_LEARNING_PROB)
+    imdb_ws.active_learning(all_boxes_ws, thresh=0.7, prob = args.active_learning)
 
     end = time.time()
     print("\nactive learning time: %0.4fs" % (end - start))

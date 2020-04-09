@@ -14,10 +14,13 @@ def parse_ws(filename):
         objects.append(obj_struct)
     return objects
 
-dataset = 'ws_train'
+dataset = 'al_train'
 
 
-annopath = os.path.join('./data/SNUBH_BUS/Annotations/','{:s}.xml')
+if dataset == 'al_train':
+    annopath = os.path.join('./data/SNUBH_BUS/Annotations/','{:s}_AL.xml')
+else:
+    annopath = os.path.join('./data/SNUBH_BUS/Annotations/','{:s}.xml')
 imagesetfile = os.path.join('./data/SNUBH_BUS/ImageSets/Main/','{}.txt'.format(dataset))
 save = os.path.join('./analysis_{}.txt'.format(dataset))
 

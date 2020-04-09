@@ -19,6 +19,7 @@ import subprocess
 import pdb
 import pickle
 import torch
+import random
 
 class snubh_bus(imdb):
     def __init__(self, image_set, data_path):
@@ -85,7 +86,7 @@ class snubh_bus(imdb):
         returns gt_roidb : list of dictionaries
         """
         cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb_master.pkl')
-        if os.path.exists(cache_file):
+        if self.name != 'al_train' and os.path.exists(cache_file):
             with open(cache_file, 'rb') as fid:
                 roidb = pickle.load(fid)
             print('{} gt roidb loaded from {}'.format(self.name, cache_file))
@@ -93,9 +94,10 @@ class snubh_bus(imdb):
 
         gt_roidb = [self._load_imagenet_annotation(index)
                     for index in self.image_index]
-        with open(cache_file, 'wb') as fid:
-            pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
-        print('wrote gt roidb to {}'.format(cache_file))
+        if self.name != 'al_train':
+            with open(cache_file, 'wb') as fid:
+                pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
+            print('wrote gt roidb to {}'.format(cache_file))
 
         return gt_roidb
 
@@ -193,35 +195,55 @@ class snubh_bus(imdb):
         # recs == gt_boxes list
 
         uniform = torch.distributions.uniform.Uniform(0,1)
+        benign_list = []
+        malignant_list = []
+        for i, imagename in enumerate(imagenames):
+            # pred_boxes_cls = all_boxes[:,i,:,:]
+            pred_boxes_cls = np.asarray(all_boxes)[:,i]
+            gt_cls = int(recs[imagename]['diag']) + 1
+            # Variables for checking thesis, Irrelavant to test----
+            highest_cls_prob = 0
+            highest_xmin = 0
+            highest_xmax = 0
+            highest_ymin = 0
+            highest_ymax = 0
+            pred_boxes = pred_boxes_cls[gt_cls].reshape(-1,5)
+            for roi_idx in range(len(pred_boxes)):
+                roi = torch.from_numpy(pred_boxes[roi_idx][:4])
+                cls_prob = pred_boxes[roi_idx][-1]                    
+                if highest_cls_prob < cls_prob:
+                    highest_cls_prob = cls_prob
+                    highest_xmin = int(np.round(roi[0].cpu().numpy()))
+                    highest_ymin = int(np.round(roi[1].cpu().numpy()))
+                    highest_xmax = int(np.round(roi[2].cpu().numpy()))
+                    highest_ymax = int(np.round(roi[3].cpu().numpy()))
+            # Variables for checking thesis, Irrelavant to test----
+            
+            if highest_cls_prob > thresh and uniform.sample() <= prob:
+                obj = {}
+                obj['name'] = self._ind_to_class_image[gt_cls]
+                obj['bndbox'] = [highest_xmin,highest_ymin,highest_xmax,highest_ymax]
+                if gt_cls == 1:
+                    benign_list.append((imagename,obj))
+                elif gt_cls == 2:
+                    malignant_list.append((imagename,obj))
+        num_b = len(benign_list)
+        num_m = len(malignant_list)
+        num = num_m if num_m < num_b else num_b
+        sample_b = random.sample(benign_list,num)
+        sample_m = random.sample(malignant_list,num)
+
         with open(al_imageset_file,'w') as f:
-            for i, imagename in enumerate(imagenames):
-                # pred_boxes_cls = all_boxes[:,i,:,:]
-                pred_boxes_cls = np.asarray(all_boxes)[:,i]
-                gt_cls = int(recs[imagename]['diag']) + 1
-                # Variables for checking thesis, Irrelavant to test----
-                highest_cls_prob = 0
-                highest_xmin = 0
-                highest_xmax = 0
-                highest_ymin = 0
-                highest_ymax = 0
-                pred_boxes = pred_boxes_cls[gt_cls].reshape(-1,5)
-                for roi_idx in range(len(pred_boxes)):
-                    roi = torch.from_numpy(pred_boxes[roi_idx][:4])
-                    cls_prob = pred_boxes[roi_idx][-1]                    
-                    if highest_cls_prob < cls_prob:
-                        highest_cls_prob = cls_prob
-                        highest_xmin = int(np.round(roi[0].cpu().numpy()))
-                        highest_ymin = int(np.round(roi[1].cpu().numpy()))
-                        highest_xmax = int(np.round(roi[2].cpu().numpy()))
-                        highest_ymax = int(np.round(roi[3].cpu().numpy()))
-                # Variables for checking thesis, Irrelavant to test----
-                
-                if highest_cls_prob > thresh and uniform.sample() <= prob:
-                    f.write('{}\n'.format(imagename))
-                    obj = {}
-                    obj['name'] = self._ind_to_class_image[gt_cls]
-                    obj['bndbox'] = [highest_xmin,highest_ymin,highest_xmax,highest_ymax]
-                    self.write_annotation(annopath.format(imagename+"_AL"), imagename, recs[imagename], obj)
+            for i in range(num):
+                benign_img, benign_obj = sample_b[i]
+                malign_img, malign_obj = sample_m[i]
+                f.write('{}\n'.format(benign_img))
+                f.write('{}\n'.format(malign_img))
+                self.write_annotation(annopath.format(benign_img+"_AL"), benign_img, recs[benign_img], benign_obj)
+                self.write_annotation(annopath.format(malign_img+"_AL"), malign_img, recs[malign_img], malign_obj)
+
+            
+
 
     def evaluate_detections(self, all_boxes, all_boxes_n, output_dir, thresh):
         # all_boxes : (cls, image, boxes, 5) 5 = (x, y, x, y, cls_prob)
