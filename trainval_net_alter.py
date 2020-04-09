@@ -360,7 +360,6 @@ if __name__ == '__main__':
     loss = rpn_loss_cls_s.mean() + rpn_loss_box_s.mean() \
         + RCNN_loss_cls_s.mean() + RCNN_loss_bbox_s.mean()
 
-    rpn_loss_cls_al, rpn_loss_box_al, RCNN_loss_cls_al, RCNN_loss_bbox_al = 0,0,0,0
     if args.active_learning:
       data = next(data_iter_al)
       with torch.no_grad():

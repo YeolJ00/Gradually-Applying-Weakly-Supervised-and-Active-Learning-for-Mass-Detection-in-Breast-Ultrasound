@@ -85,16 +85,17 @@ class snubh_bus(imdb):
 
         returns gt_roidb : list of dictionaries
         """
-        cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb_master.pkl')
-        if self.name != 'al_train' and os.path.exists(cache_file):
-            with open(cache_file, 'rb') as fid:
-                roidb = pickle.load(fid)
-            print('{} gt roidb loaded from {}'.format(self.name, cache_file))
-            return roidb
+        if not (self.name.startswith('al')):
+            cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb_master.pkl')
+            if os.path.exists(cache_file):
+                with open(cache_file, 'rb') as fid:
+                    roidb = pickle.load(fid)
+                print('{} gt roidb loaded from {}'.format(self.name, cache_file))
+                return roidb
 
         gt_roidb = [self._load_imagenet_annotation(index)
                     for index in self.image_index]
-        if self.name != 'al_train':
+        if not (self.name.startswith('al')):
             with open(cache_file, 'wb') as fid:
                 pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
             print('wrote gt roidb to {}'.format(cache_file))

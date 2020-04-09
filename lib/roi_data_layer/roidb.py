@@ -39,7 +39,11 @@ def prepare_roidb(imdb):
     else:
         sizes = [Image.open(imdb.image_path_at(i)).size for i in range(imdb.num_images)]
     #caches sizes of images(w x h)
-             
+
+    pdb.set_trace()
+    print(len(imdb.image_index))
+    print(imdb.num_images)
+    print(len(sizes))
     for i in range(len(imdb.image_index)):
         # i means the index of an image
         roidb[i]['image'] = imdb.image_path_at(i)
