@@ -23,7 +23,7 @@ for split in ['train', 'val', 'val1', 'val2', 'test']:
     data_path = 'data/imagenet/ILSVRC'
     __sets[name] = (lambda split=split, devkit_path=devkit_path, data_path=data_path: imagenet(split,devkit_path,data_path))
 
-for split in ['s_train','test','test_normal','ws_train','al_train']:
+for split in ['s_train','test','test_normal','ws_train','ws_test','al_train']:
     name = 'SNUBH_BUS_{}'.format(split)
     data_path = 'data/SNUBH_BUS'
     __sets[name] = (lambda split = split, data_path = data_path: snubh_bus(split, data_path))

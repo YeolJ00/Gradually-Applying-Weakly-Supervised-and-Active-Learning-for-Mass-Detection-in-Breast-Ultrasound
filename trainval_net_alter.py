@@ -323,6 +323,7 @@ if __name__ == '__main__':
 
   start = time.time()
   loss_temp = 0
+  dataset_cycle = "strong"
   for step in range(args.max_iter + 1):
     # setting to train mode
     fasterRCNN.train()
@@ -330,37 +331,24 @@ if __name__ == '__main__':
     # alpha = 0.01 + 0.99 * (step/80000.)
     alpha = 0.01 + 0.99 * ((step/args.max_iter)**args.gamma_for_alpha)
 
-    if step % train_size_s == 0:
+    if step % train_size_s == 0 and dataset_cycle == "strong":
       data_iter_s = iter(dataloader_s)
-    if args.active_learning and step % train_size_al == 0:
-        data_iter_al = iter(dataloader_al)
+      dataset_cycle = "al" if args.active_learning else "strong"
+    if args.active_learning and step % train_size_al == 0 and dataset_cycle == "al":
+      data_iter_al = iter(dataloader_al)
+      dataset_cycle = "strong"
     if step % train_size_ws == 0:
       data_iter_ws = iter(dataloader_ws)
 
-    data = next(data_iter_s)
-    with torch.no_grad():
-      im_data.resize_(data[0].size()).copy_(data[0])
-      im_info.resize_(data[1].size()).copy_(data[1])
-      gt_boxes.resize_(data[2].size()).copy_(data[2])
-      num_boxes.resize_(data[3].size()).copy_(data[3])
-      im_label.resize_(data[4].size()).copy_(data[4])  
-
-    fasterRCNN.zero_grad()
-    rois, cls_prob, bbox_pred, \
-    rpn_loss_cls_s, rpn_loss_box_s, \
-    RCNN_loss_cls_s, RCNN_loss_bbox_s, \
-    rois_label_s = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = False) # fasterRCNN is a network instance, __call__ calls forward in faster_rcnn.py
-    # rois : (batch, rois, 5)
-    # cls_prob : (batch, rois, C)
-    # bbox_pred : (batch, rois, 4)
-    # rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox : single value
-    # rois_label : (batch*rois)
-  
-    # 15 is for bbox loss balance
-    loss = rpn_loss_cls_s.mean() + rpn_loss_box_s.mean() \
-        + RCNN_loss_cls_s.mean() + RCNN_loss_bbox_s.mean()
-
-    if args.active_learning:
+    if dataset_cycle == "strong":
+      data = next(data_iter_s)
+      with torch.no_grad():
+        im_data.resize_(data[0].size()).copy_(data[0])
+        im_info.resize_(data[1].size()).copy_(data[1])
+        gt_boxes.resize_(data[2].size()).copy_(data[2])
+        num_boxes.resize_(data[3].size()).copy_(data[3])
+        im_label.resize_(data[4].size()).copy_(data[4])  
+    elif args.active_learning and dataset_cycle =="al":
       data = next(data_iter_al)
       with torch.no_grad():
         im_data.resize_(data[0].size()).copy_(data[0])
@@ -368,21 +356,15 @@ if __name__ == '__main__':
         gt_boxes.resize_(data[2].size()).copy_(data[2])
         num_boxes.resize_(data[3].size()).copy_(data[3])
         im_label.resize_(data[4].size()).copy_(data[4])  
+    # fasterRCNN.zero_grad()
+    rois, cls_prob, bbox_pred, \
+    rpn_loss_cls_s, rpn_loss_box_s, \
+    RCNN_loss_cls_s, RCNN_loss_bbox_s, \
+    rois_label_s = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = False)
 
-      fasterRCNN.zero_grad()
-      rois, cls_prob, bbox_pred, \
-      rpn_loss_cls_al, rpn_loss_box_al, \
-      RCNN_loss_cls_al, RCNN_loss_bbox_al, \
-      rois_label_al = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = False) # fasterRCNN is a network instance, __call__ calls forward in faster_rcnn.py
-      # rois : (batch, rois, 5)
-      # cls_prob : (batch, rois, C)
-      # bbox_pred : (batch, rois, 4)
-      # rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox : single value
-      # rois_label : (batch*rois)
+    loss = rpn_loss_cls_s.mean() + rpn_loss_box_s.mean() \
+        + RCNN_loss_cls_s.mean() + RCNN_loss_bbox_s.mean()
     
-      loss += ( rpn_loss_cls_al.mean() + rpn_loss_box_al.mean() \
-          + RCNN_loss_cls_al.mean() + RCNN_loss_bbox_al.mean())
-
     data = next(data_iter_ws)
     with torch.no_grad():
       im_data.resize_(data[0].size()).copy_(data[0])
@@ -390,17 +372,12 @@ if __name__ == '__main__':
       gt_boxes.resize_(data[2].size()).copy_(data[2])
       num_boxes.resize_(data[3].size()).copy_(data[3])
       im_label.resize_(data[4].size()).copy_(data[4])
-
     # fasterRCNN.zero_grad()
     rois, cls_prob, bbox_pred, \
     rpn_loss_cls_ws, rpn_loss_box_ws, \
     RCNN_loss_cls_ws, RCNN_loss_bbox_ws, \
-    rois_label_ws = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = True) # fasterRCNN is a network instance, __call__ calls forward in faster_rcnn.py
-    # rois : (batch, rois, 5)
-    # cls_prob : (batch, rois, C)
-    # bbox_pred : (batch, rois, 4)
-    # rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox : single value
-    # rois_label : (batch*rois)
+    rois_label_ws = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = True)
+    
     loss += alpha * RCNN_loss_cls_ws.mean()
 
     # backward
@@ -411,54 +388,31 @@ if __name__ == '__main__':
     optimizer.step()
     loss_temp += loss
 
-
-
-    loss_rpn_cls_al, loss_rpn_box_al, loss_rcnn_cls_al, loss_rcnn_box_al = 0, 0, 0, 0
     if step % args.disp_interval == 0:
       end = time.time()
       loss_temp /= args.disp_interval
       if args.mGPUs:
-        if args.active_learning:
-          loss_rpn_cls_al = rpn_loss_cls_al.mean().item()
-          loss_rpn_box_al = rpn_loss_box_al.mean().item()
-          loss_rcnn_cls_al = RCNN_loss_cls_al.mean().item()
-          loss_rcnn_box_al = RCNN_loss_bbox_al.mean().item()
         loss_rpn_cls_s = rpn_loss_cls_s.mean().item()
         loss_rpn_box_s = rpn_loss_box_s.mean().item()
         loss_rcnn_cls_s = RCNN_loss_cls_s.mean().item()
         loss_rcnn_box_s = RCNN_loss_bbox_s.mean().item()
         loss_rcnn_cls_ws = alpha * RCNN_loss_cls_ws.mean().item()
       else:
-        if args.active_learning:
-          loss_rpn_cls_al = rpn_loss_cls_al.mean().item()
-          loss_rpn_box_al = rpn_loss_box_al.mean().item()
-          loss_rcnn_cls_al = RCNN_loss_cls_al.mean().item()
-          loss_rcnn_box_al = RCNN_loss_bbox_al.mean().item()
         loss_rpn_cls_s = rpn_loss_cls_s.mean().item()
         loss_rpn_box_s = rpn_loss_box_s.mean().item()
         loss_rcnn_cls_s = RCNN_loss_cls_s.mean().item()
         loss_rcnn_box_s = RCNN_loss_bbox_s.mean().item()
         loss_rcnn_cls_ws = alpha * RCNN_loss_cls_ws.mean().item()
 
-      fg_cnt_s = torch.sum(rois_label_s.data.ne(0))
-      bg_cnt_s = rois_label_s.data.numel() - fg_cnt_s
-      if args.active_learning:
-        fg_cnt_al = torch.sum(rois_label_al.data.ne(0))
-        bg_cnt_al = rois_label_al.data.numel() - fg_cnt_al
-      else:
-        fg_cnt_al = 0
-        bg_cnt_al = 0
-
+      fg_cnt = torch.sum(rois_label_s.data.ne(0))
+      bg_cnt = rois_label_s.data.numel() - fg_cnt
 
       print("[session %d][iter %4d/%4d] loss: %.4f, lr: %.2e" \
                               % (args.session, step, args.max_iter, loss_temp, lr))
-      print("\t\t\tfg/bg=(%d/%d), time cost: %f" % (fg_cnt_s, bg_cnt_s, end-start))
-      print("\t\t\tfg/bg=(%d/%d)" % (fg_cnt_al, bg_cnt_al))
+      print("\t\t\tfg/bg=(%d/%d), time cost: %f" % (fg_cnt, bg_cnt, end-start))
       print("\t\t\trpn_cls_s: %.4f, rpn_box_s: %.4f,  rcnn_cls_s: %.4f,  rcnn_box_s: %.4f, \
-        \n\t\t\trpn_cls_al: %.4f, rpn_box_al: %.4f, rcnn_cls_al: %.4f, rcnn_box_al: %.4f, \
         \n\t\t\trcnn_cls_ws: %.4f" \
-                    % (loss_rpn_cls_s, loss_rpn_box_s, loss_rcnn_cls_s, loss_rcnn_box_s,\
-                      loss_rpn_cls_al, loss_rpn_box_al, loss_rcnn_cls_al, loss_rcnn_box_al, loss_rcnn_cls_ws))
+                    % (loss_rpn_cls_s, loss_rpn_box_s, loss_rcnn_cls_s, loss_rcnn_box_s, loss_rcnn_cls_ws))
       if args.use_tfboard:
         info = {
           'loss': loss_temp,

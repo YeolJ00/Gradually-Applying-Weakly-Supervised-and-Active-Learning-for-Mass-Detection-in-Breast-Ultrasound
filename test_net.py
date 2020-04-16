@@ -132,7 +132,7 @@ if __name__ == '__main__':
   cfg.TRAIN.USE_FLIPPED = False
   imdb_s, roidb_s, ratio_list_s, ratio_index_s = combined_roidb(args.imdbval_name+'_test', False)
   if args.active_learning:
-    imdb_ws, roidb_ws, ratio_list_ws, ratio_index_ws = combined_roidb(args.imdbval_name+'_ws_train', False)
+    imdb_ws, roidb_ws, ratio_list_ws, ratio_index_ws = combined_roidb(args.imdbval_name+'_ws_test', False)
   imdb_n, roidb_n, ratio_list_n, ratio_index_n = combined_roidb(args.imdbval_name+'_test_normal', False)
 
   print('{:d} strong roidb entries'.format(len(roidb_s)))
@@ -524,7 +524,7 @@ if __name__ == '__main__':
       sys.stdout.write('im_detect: {:d}/{:d} {:.3f}s {:.3f}s   \r' \
                       .format(i + 1, num_images_ws, detect_time, nms_time))
       sys.stdout.flush()
-    imdb_ws.active_learning(all_boxes_ws, thresh=0.7, prob = args.active_learning)
+    imdb_ws.active_learning(all_boxes_ws, thresh=cfg.TEST.ACTIVE_LEARNING_THRESH, prob = args.active_learning)
 
     end = time.time()
     print("\nactive learning time: %0.4fs" % (end - start))
