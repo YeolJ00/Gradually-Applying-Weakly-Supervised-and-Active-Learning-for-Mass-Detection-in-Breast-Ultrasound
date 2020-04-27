@@ -47,7 +47,7 @@ def clip_gradient(model, clip_norm):
         if p.requires_grad and p.grad is not None:
             p.grad.mul_(norm)
 
-def vis_detections(im, class_name, dets, thresh=0.8, gt_box = None):
+def vis_detections(im, class_name, dets, thresh=0.5, gt_box = None):
     """Visual debugging of detections."""
     for i in range(np.minimum(10, dets.shape[0])):
         bbox = tuple(int(np.round(x)) for x in dets[i, :4])

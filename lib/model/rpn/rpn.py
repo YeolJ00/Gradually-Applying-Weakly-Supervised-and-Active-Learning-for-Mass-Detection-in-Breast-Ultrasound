@@ -8,6 +8,7 @@ from model.utils.config import cfg
 from .proposal_layer import _ProposalLayer
 from .anchor_target_layer import _AnchorTargetLayer
 from model.utils.net_utils import _smooth_l1_loss_3d
+from model.utils.net_utils import _smooth_l1_loss
 from .focal_loss import FocalLoss2d
 
 import numpy as np
@@ -27,17 +28,15 @@ class _RPN(nn.Module):
 
         # define the convrelu layers processing input feature map
         # self.RPN_Conv = nn.Conv2d(self.din, 512, kernel_size = 3, stride = 1, padding = 1, bias=True)
-        self.RPN_Conv = nn.Sequential(nn.Conv2d(self.din, 1024, kernel_size = 3, stride = 1, padding = 1, bias=True), nn.ReLU())
+        self.RPN_Conv = nn.Conv2d(self.din, 512, 3, 1, 1, bias=True)
 
         # define bg/fg classifcation score layer
         self.nc_score_out = len(self.anchor_scales) * len(self.anchor_ratios) * 2 # 2(bg/fg) * 9 (anchors)
-        # self.RPN_cls_score = nn.Conv2d(512, self.nc_score_out, kernel_size = 1, stride = 1, padding =  0)
-        self.RPN_cls_score = nn.Conv2d(1024, self.nc_score_out, kernel_size = 3, stride = 1, padding =  1, bias= True)
+        self.RPN_cls_score = nn.Conv2d(512, self.nc_score_out, 1, 1, 0)
 
         # define anchor box offset prediction layer
         self.nc_bbox_out = len(self.anchor_scales) * len(self.anchor_ratios) * 4 # 4(coords) * 9 (anchors)
-        # self.RPN_bbox_pred = nn.Conv2d(512, self.nc_bbox_out, kernel_size = 1, stride =  1, padding = 0)
-        self.RPN_bbox_pred = nn.Conv2d(1024, self.nc_bbox_out, kernel_size = 3, stride =  1, padding = 1, bias= True)
+        self.RPN_bbox_pred = nn.Conv2d(512, self.nc_bbox_out, 1, 1, 0)
 
         # define proposal layer
         self.RPN_proposal = _ProposalLayer(self.feat_stride, self.anchor_scales, self.anchor_ratios)
@@ -85,10 +84,6 @@ class _RPN(nn.Module):
                                  im_info, cfg_key))
         # rois : (batch, 300, 5)
 
-        # torch.set_printoptions(threshold=100000)
-        # pdb.set_trace()
-        # print(rpn_cls_prob_reshape[0,1,:,:])
-
         self.rpn_loss_cls = 0
         self.rpn_loss_box = 0
         if self.training and is_ws:
@@ -108,10 +103,6 @@ class _RPN(nn.Module):
             rpn_cls_score = rpn_cls_score_reshape.permute(0, 2, 3, 1).contiguous().view(batch_size, -1, 2)
             rpn_label = rpn_data[0].view(batch_size, -1)#  (batch, 9*H*W)
             _rpn_label = rpn_label.view(batch_size, 9, -1)#(batch, 9, H*W)
-            # pdb.set_trace()
-            # print(_rpn_label.shape)
-            # print(_rpn_label[0,:,2])
-            # print(_rpn_label[0,:,3])
 
             rpn_keep = Variable(rpn_label.view(-1).ne(-1).nonzero().view(-1))
             rpn_cls_score = torch.index_select(rpn_cls_score.view(-1,2), 0, rpn_keep)
@@ -141,11 +132,13 @@ class _RPN(nn.Module):
             # self.rpn_loss_box = _rpn_loss_box.sum(2).mean()
 
             # calculate box loss for boxes with label 0, same as the original one
-            _rpn_loss_box = _smooth_l1_loss_3d(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
-                                                            rpn_bbox_outside_weights, sigma=3)
-            _rpn_loss_box = _rpn_loss_box.view(batch_size, 9, -1)
-            # _rpn_loss_box = torch.where(_rpn_label == 1, _rpn_loss_box, torch.FloatTensor([0]).cuda()) #(1, 9, H*W)
-            self.rpn_loss_box = _rpn_loss_box.sum(2).sum(1).mean()
+            # _rpn_loss_box = _smooth_l1_loss_3d(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
+            #                                                 rpn_bbox_outside_weights, sigma=3)
+            # _rpn_loss_box = _rpn_loss_box.view(batch_size, 9, -1)
+            # # _rpn_loss_box = torch.where(_rpn_label == 1, _rpn_loss_box, torch.FloatTensor([0]).cuda()) #(1, 9, H*W)
+            # self.rpn_loss_box = _rpn_loss_box.sum(2).sum(1).mean()
+            self.rpn_loss_box = _smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
+                                                            rpn_bbox_outside_weights, sigma=3, dim=[1,2,3])
 
         return rois, self.rpn_loss_cls, self.rpn_loss_box
         # rois : proposals sent to faster_rcnn (batch, nms_top_n, 5) 5 is (batch#,x,y,x,y)

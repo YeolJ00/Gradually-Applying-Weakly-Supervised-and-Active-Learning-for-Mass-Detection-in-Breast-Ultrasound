@@ -57,12 +57,6 @@ class _fasterRCNN(nn.Module):
     # if is_ws == True, rpn_loss_cls is ACTUALLY rpn_cls_prob.data
     rois, rpn_loss_cls, rpn_loss_bbox = self.RCNN_rpn(base_feat, im_info, gt_boxes, num_boxes, is_ws)
 
-    # torch.set_printoptions(threshold=5000)
-    # pdb.set_trace()
-    # print(rois[0,:25])
-    # print(gt_boxes)
-    # print(gt_boxes.shape)
-
     # if it is training phase, then use ground truth bboxes for refining
     if self.training and is_ws == False:
       roi_data = self.RCNN_proposal_target(rois, gt_boxes, num_boxes)
@@ -93,18 +87,10 @@ class _fasterRCNN(nn.Module):
 
     rois = Variable(rois)
 
-
-    # torch.set_printoptions(threshold=5000)
-    # pdb.set_trace()
-    # print(gt_boxes)
-    # print(rois)
-
-
     # do roi pooling based on predicted rois
     # base_feat : (batch, 1024, h, w)
     # rois.view(-1,5) : (batch*rois, 5)
     # pooled_feat: (batch*rois, 1024, h, w)
-
     if cfg.POOLING_MODE == 'align':
       pooled_feat = self.RCNN_roi_align(base_feat, rois.view(-1, 5))
     elif cfg.POOLING_MODE == 'pool':
@@ -174,35 +160,21 @@ class _fasterRCNN(nn.Module):
 
   def _init_weights(self):
     def normal_init(m, mean, stddev, truncated=False):
-      """
-      weight initalizer: truncated normal and random normal.
-      """
-      # x is a parameter
-      if truncated:
-        m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean) # not a perfect approximation
-      else:
-        torch.nn.init.kaiming_normal_(m.weight)
-        # torch.nn.init.xavier_normal_(m.weight)
-        # m.weight.data.normal_(mean, stddev)
-        # m.bias.data.zero_()
-        
-    def weight_Sequential(m, mean, stddev, trauncated=False):
-      classname = m.__class__.__name__
-      if classname.find('Conv') != -1:
-        torch.nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
-        # m.weight.data.normal_(0.0, 0.02)
-        # m.bias.data.fill_(0)
-      elif classname.find('BatchNorm') != -1:
-        # m.weight.data.normal_(1.0, 0.02)
-        # m.bias.data.fill_(0)
-        pass
+            """
+            weight initalizer: truncated normal and random normal.
+            """
+            # x is a parameter
+            if truncated:
+                m.weight.data.normal_().fmod_(2).mul_(stddev).add_(mean) # not a perfect approximation
+            else:
+                m.weight.data.normal_(mean, stddev)
+                m.bias.data.zero_()
 
-    weight_Sequential(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.TRUNCATED)
+    normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.TRUNCATED)
     normal_init(self.RCNN_rpn.RPN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
     normal_init(self.RCNN_rpn.RPN_bbox_pred, 0, 0.01, cfg.TRAIN.TRUNCATED)
     normal_init(self.RCNN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
     normal_init(self.RCNN_bbox_pred, 0, 0.001, cfg.TRAIN.TRUNCATED)
-    weight_Sequential(self.RCNN_top, 0, 0.01, cfg.TRAIN.TRUNCATED)
 
   def create_architecture(self):
     self._init_modules()

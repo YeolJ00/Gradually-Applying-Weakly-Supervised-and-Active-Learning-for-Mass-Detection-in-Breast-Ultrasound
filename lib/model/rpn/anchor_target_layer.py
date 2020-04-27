@@ -162,13 +162,6 @@ class _AnchorTargetLayer(nn.Module):
     argmax_overlaps = argmax_overlaps + offset.view(batch_size, 1).type_as(argmax_overlaps)
     bbox_targets = _compute_targets_batch(anchors, gt_boxes.view(-1,5)[argmax_overlaps.view(-1), :].view(batch_size, -1, 5))
 
-    # pdb.set_trace()
-    # print(object_label_idx.shape)
-    # print(gt_boxes.shape)
-    # print(gt_boxes)
-    # print(bbox_targets.shape)
-    # print(bbox_targets)
-
     # use a single value instead of 4 values for easy index.
     bbox_inside_weights[labels==1] = cfg.TRAIN.RPN_BBOX_INSIDE_WEIGHTS[0]
 
@@ -183,33 +176,10 @@ class _AnchorTargetLayer(nn.Module):
     bbox_outside_weights[labels == 1] = positive_weights
     bbox_outside_weights[labels == 0] = negative_weights
 
-    # pdb.set_trace()
-    # print(inds_inside.shape)
-    # print(bbox_targets)
-    # print(object_label_idx.shape)
-    # print(object_label_idx)
-    # print(inds_inside[object_label_idx].shape)
-    # print(inds_inside[object_label_idx])
-    # print(labels.shape)
-    # print(labels)
-    # print(total_anchors)
-    # print(bbox_inside_weights.shape)
-
-
     labels = _unmap(labels, total_anchors, inds_inside, batch_size, fill=-1)
     bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, batch_size, fill=0)
     bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside, batch_size, fill=0)
     bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside, batch_size, fill=0)
-
-    # labels = _unmap(labels[:,object_label_idx], total_anchors, inds_inside[object_label_idx], batch_size, fill=-1)
-    # bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside[object_label_idx], batch_size, fill=0)
-    # bbox_inside_weights = _unmap(bbox_inside_weights[:,object_label_idx], total_anchors, inds_inside[object_label_idx], batch_size, fill=0)
-    # bbox_outside_weights = _unmap(bbox_outside_weights[:,object_label_idx], total_anchors, inds_inside[object_label_idx], batch_size, fill=0)
-
-    # torch.set_printoptions(threshold=3000)
-    # pdb.set_trace()
-    # print(labels[0,inds_inside[object_label_idx]])
-    # print(bbox_targets[0,inds_inside[object_label_idx],:])
 
     outputs = []
 

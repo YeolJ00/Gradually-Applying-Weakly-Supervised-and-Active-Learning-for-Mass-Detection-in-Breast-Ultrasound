@@ -187,34 +187,25 @@ if __name__ == '__main__':
   cfg.TRAIN.USE_FLIPPED = True
   cfg.USE_GPU_NMS = args.cuda
 
-  imdb_s, roidb_s, ratio_list_s, ratio_index_s = combined_roidb(args.imdb_name + '_s_train')
-  imdb_ws, roidb_ws, ratio_list_ws, ratio_index_ws = combined_roidb(args.imdb_name + '_ws_train')
+  imdb, roidb, ratio_list, ratio_index = combined_roidb(args.imdb_name + '_s_train')
   # imdb : instance of image db = snubh_bus
   # roidb: list of dictionaries
 
-  train_size_s = len(roidb_s)
-  train_size_ws = len(roidb_ws)
+  train_size = len(roidb)
   # train_size = number of images
   
-  print('{:d} strong roidb entries'.format(len(roidb_s)))
-  print('{:d} weak roidb entries'.format(len(roidb_ws)))
+  print('{:d} strong roidb entries'.format(len(roidb)))
 
   output_dir = args.save_dir + "/" + args.net + "/" + args.dataset
   if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
-  sampler_batch_s = sampler(train_size_s, args.batch_size)
-  sampler_batch_ws = sampler(train_size_ws, args.batch_size)
+  sampler_batch = sampler(train_size, args.batch_size)
 
-  dataset_s = roibatchLoader(roidb_s, ratio_list_s, ratio_index_s, args.batch_size, \
-                 imdb_s.num_classes, is_ws= False, training=True)
-  dataloader_s = torch.utils.data.DataLoader(dataset_s, batch_size=args.batch_size, 
-                sampler=sampler_batch_s, num_workers=args.num_workers)
-
-  dataset_ws = roibatchLoader(roidb_ws, ratio_list_ws, ratio_index_ws, args.batch_size,
-                imdb_ws.num_classes, is_ws = True, training=True)
-  dataloader_ws = torch.utils.data.DataLoader(dataset_ws, batch_size=args.batch_size,
-                sampler=sampler_batch_ws, num_workers=args.num_workers)
+  dataset = roibatchLoader(roidb, ratio_list, ratio_index, args.batch_size, \
+                 imdb.num_classes, is_ws= False, training=True)
+  dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size, 
+                sampler=sampler_batch, num_workers=args.num_workers)
 
   # initilize the tensor holder here.
   im_data = torch.FloatTensor(1)
@@ -242,13 +233,13 @@ if __name__ == '__main__':
 
   # initilize the network here.
   if args.net == 'vgg16':
-    fasterRCNN = vgg16(imdb_s.classes, pretrained=True, class_agnostic=args.class_agnostic)
+    fasterRCNN = vgg16(imdb.classes, pretrained=True, class_agnostic=args.class_agnostic)
   elif args.net == 'res101':
-    fasterRCNN = resnet(imdb_s.classes, 101, pretrained=True, class_agnostic=args.class_agnostic)
+    fasterRCNN = resnet(imdb.classes, 101, pretrained=True, class_agnostic=args.class_agnostic)
   elif args.net == 'res50':
-    fasterRCNN = resnet(imdb_s.classes, 50, pretrained=True, class_agnostic=args.class_agnostic)
+    fasterRCNN = resnet(imdb.classes, 50, pretrained=True, class_agnostic=args.class_agnostic)
   elif args.net == 'res152':
-    fasterRCNN = resnet(imdb_s.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
+    fasterRCNN = resnet(imdb.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
   else:
     print("network is not defined")
     pdb.set_trace()
@@ -308,72 +299,38 @@ if __name__ == '__main__':
     fasterRCNN.train()
     loss_temp = 0
     start = time.time()
-    if epoch <= args.strong_epoch:
-      iters_per_epoch = int((train_size_s + 0) / args.batch_size)
-      # batch epoch
-    else:
-      iters_per_epoch = int((train_size_s + train_size_ws) / args.batch_size)
+    iters_per_epoch = int((train_size) / args.batch_size)
+    data_iter = iter(dataloader)
 
     if epoch % (args.lr_decay_step + 1) == 0 and args.optimizer is not 'adam':
       adjust_learning_rate(optimizer, args.lr_decay_gamma)
       lr *= args.lr_decay_gamma
 
-    data_iter_s = iter(dataloader_s)
-    data_iter_ws = iter(dataloader_ws)
-
     for step in range(iters_per_epoch):
-      if step < train_size_s / args.batch_size:
-        is_ws = False
-        data = next(data_iter_s)
-        with torch.no_grad():
-          im_data.resize_(data[0].size()).copy_(data[0])
-          im_info.resize_(data[1].size()).copy_(data[1])
-          gt_boxes.resize_(data[2].size()).copy_(data[2])
-          num_boxes.resize_(data[3].size()).copy_(data[3])
-          im_label.resize_(data[4].size()).copy_(data[4])  
+      data = next(data_iter)
+      with torch.no_grad():
+        im_data.resize_(data[0].size()).copy_(data[0])
+        im_info.resize_(data[1].size()).copy_(data[1])
+        gt_boxes.resize_(data[2].size()).copy_(data[2])
+        num_boxes.resize_(data[3].size()).copy_(data[3])
+        im_label.resize_(data[4].size()).copy_(data[4])  
 
-        fasterRCNN.zero_grad()
-        rois, cls_prob, bbox_pred, \
-        rpn_loss_cls, rpn_loss_box, \
-        RCNN_loss_cls, RCNN_loss_bbox, \
-        rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = False) # fasterRCNN is a network instance, __call__ calls forward in faster_rcnn.py
-        # rois : (batch, rois, 5)
-        # cls_prob : (batch, rois, C)
-        # bbox_pred : (batch, rois, 4)
-        # rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox : single value
-        # rois_label : (batch*rois)
-      
-        # 15 is for bbox loss balance
-        loss = rpn_loss_cls.mean() + 15 * rpn_loss_box.mean() \
-            + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
-        loss_temp += loss.item()
+      fasterRCNN.zero_grad()
+      rois, cls_prob, bbox_pred, \
+      rpn_loss_cls, rpn_loss_box, \
+      RCNN_loss_cls, RCNN_loss_bbox, \
+      rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = False) # fasterRCNN is a network instance, __call__ calls forward in faster_rcnn.py
+      # rois : (batch, rois, 5)
+      # cls_prob : (batch, rois, C)
+      # bbox_pred : (batch, rois, 4)
+      # rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox : single value
+      # rois_label : (batch*rois)
+    
+      loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
+          + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
+      loss_temp += loss.item()
 
-      else:
-        is_ws = True
-        data = next(data_iter_ws)
-        with torch.no_grad():
-          im_data.resize_(data[0].size()).copy_(data[0])
-          im_info.resize_(data[1].size()).copy_(data[1])
-          gt_boxes.resize_(data[2].size()).copy_(data[2])
-          num_boxes.resize_(data[3].size()).copy_(data[3])
-          im_label.resize_(data[4].size()).copy_(data[4])
-
-        fasterRCNN.zero_grad()
-        rois, cls_prob, bbox_pred, \
-        rpn_loss_cls, rpn_loss_box, \
-        RCNN_loss_cls, RCNN_loss_bbox, \
-        rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = True) # fasterRCNN is a network instance, __call__ calls forward in faster_rcnn.py
-        # rois : (batch, rois, 5)
-        # cls_prob : (batch, rois, C)
-        # bbox_pred : (batch, rois, 4)
-        # rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox : single value
-        # rois_label : (batch*rois)
-      
-        # class balance needed
-        loss = 0.1 * RCNN_loss_cls.mean()
-        loss_temp += loss.item()
-
-        # backward
+      # backward
       optimizer.zero_grad()
       loss.backward()
       if args.net == "vgg16":
@@ -385,28 +342,16 @@ if __name__ == '__main__':
         if step > 0:
           loss_temp /= (args.disp_interval + 1)
           # average loss during a disp_inverval\
-        if is_ws == False:
-          if args.mGPUs:
-            loss_rpn_cls = rpn_loss_cls.mean().item()
-            loss_rpn_box = 15 * rpn_loss_box.mean().item()
-            loss_rcnn_cls = RCNN_loss_cls.mean().item()
-            loss_rcnn_box = RCNN_loss_bbox.mean().item()
-          else:
-            loss_rpn_cls = rpn_loss_cls.item()
-            loss_rpn_box = 15 * rpn_loss_box.item()
-            loss_rcnn_cls = RCNN_loss_cls.item()
-            loss_rcnn_box = RCNN_loss_bbox.item()
+        if args.mGPUs:
+          loss_rpn_cls = rpn_loss_cls.mean().item()
+          loss_rpn_box = rpn_loss_box.mean().item()
+          loss_rcnn_cls = RCNN_loss_cls.mean().item()
+          loss_rcnn_box = RCNN_loss_bbox.mean().item()
         else:
-          if args.mGPUs:
-            loss_rpn_cls = 0
-            loss_rpn_box = 0
-            loss_rcnn_cls = RCNN_loss_cls.mean().item()
-            loss_rcnn_box = 0
-          else:
-            loss_rpn_cls = 0
-            loss_rpn_box = 0
-            loss_rcnn_cls = RCNN_loss_cls.item()
-            loss_rcnn_box = 0
+          loss_rpn_cls = rpn_loss_cls.item()
+          loss_rpn_box = rpn_loss_box.item()
+          loss_rcnn_cls = RCNN_loss_cls.item()
+          loss_rcnn_box = RCNN_loss_bbox.item()
         fg_cnt = torch.sum(rois_label.data.ne(0))
         bg_cnt = rois_label.data.numel() - fg_cnt
 
