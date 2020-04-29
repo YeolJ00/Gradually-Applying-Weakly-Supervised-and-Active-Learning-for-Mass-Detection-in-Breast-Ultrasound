@@ -329,7 +329,7 @@ if __name__ == '__main__':
     fasterRCNN.train()
     # alpha = 1 - (0.99 * (0.9**(step / 2000)))
     # alpha = 0.01 + 0.99 * (step/80000.)
-    alpha = 0.01 + 0.99 * ((step/args.max_iter)**args.gamma_for_alpha)
+    # alpha = 0.01 + 0.99 * ((step/args.max_iter)**args.gamma_for_alpha)
     alpha = 0.01 + 0.99 * ((round(step,-4)/args.max_iter)**args.gamma_for_alpha)
 
     if step % train_size_s == 0 and dataset_cycle == "strong":
