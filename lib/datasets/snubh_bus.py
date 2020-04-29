@@ -289,6 +289,12 @@ class snubh_bus(imdb):
         box_over_object = 0 # predicted a box on an object
         cor_box_over_object = 0# predicted correct class box on object
         box_over_background_n = 0
+        
+        #metric added
+        # metric = sum of (mutual_iou * min(box1, box2))
+        metric = 0
+        num_metric = 0
+
         for i in all_boxes_n[1:]:
             for j in i:
                 box_over_background_n += len(np.where(np.asarray(j)[:,-1] > thresh)[0])
@@ -303,12 +309,45 @@ class snubh_bus(imdb):
 
         for i, imagename in enumerate(imagenames):
             # pred_boxes_cls = all_boxes[:,i,:,:]
+            # pred_boxes_cls[cls]: cls probs of all_boxes
+            # ** there can be duplicated boxes over classes. ex) pred_boxes_cls[1][i][:4] == pred_boxes_cls[2][j][:4]            
             pred_boxes_cls = np.asarray(all_boxes)[:,i]
             gt_box = torch.FloatTensor(recs[imagename][0]['bbox']) # assumes only one object exists as gt
             gt_cls = self._class_to_ind_image[recs[imagename][0]['name']]
             # Variables for checking thesis, Irrelavant to test----
             image_detected = False
             highest_cls_prob = 0
+
+            #metric added
+            benigns = pred_boxes_cls[1].reshape(-1,5)
+            keep = np.where(benigns[:,-1] > thresh)
+            benigns = benigns[keep[0]]
+
+            maligns = pred_boxes_cls[2].reshape(-1,5)
+            keep = np.where(maligns[:,-1] > thresh)
+            maligns = maligns[keep[0]]
+            for benign in benigns:
+                for malign in maligns:
+                    benign_roi = torch.from_numpy(benign[:4])
+                    malign_roi = torch.from_numpy(malign[:4])
+                    min_score = benign[-1] if benign[-1] <= malign[-1] else malign[-1]
+
+                    ixmin, iymin, _, _ = torch.max(benign_roi, malign_roi)
+                    _, _, ixmax, iymax = torch.min(benign_roi, malign_roi)
+                    iw = torch.max(ixmax-ixmin, torch.Tensor([0]))
+                    ih = torch.max(iymax-iymin, torch.Tensor([0]))
+                    inters = iw * ih
+
+                    uni = ((benign_roi[2] - benign_roi[0] + 1.) * (benign_roi[3] - benign_roi[1] + 1.) +
+                            (malign_roi[2] - malign_roi[0] + 1.) * (malign_roi[3] - malign_roi[1] + 1.) -
+                            inters)
+                    mutual_iou = inters / uni
+
+                    if mutual_iou > 0.5:
+                        metric += mutual_iou.item() * min_score.item()
+                        num_metric += 1
+            #metric added
+
             for cls_idx in range(1,self.num_classes):
                 pred_boxes = pred_boxes_cls[cls_idx].reshape(-1,5)
                 # pdb.set_trace()
@@ -347,7 +386,7 @@ class snubh_bus(imdb):
         # Finished counting for the whole dataset
         box_over_background = all_detected_boxes - box_over_object
         with open(logfile, 'a') as f:
-            f.write('{},{},{},{},{},{}\n'.format(box_over_object, lesion_detected, all_object, cor_box_over_object, all_detected_boxes,box_over_background_n))
+            f.write('{},{},{},{},{},{}, {}, {:.4f}\n'.format(box_over_object, lesion_detected, all_object, cor_box_over_object, all_detected_boxes, box_over_background_n, num_metric, metric))
 
     def parse_ws(self, filename):
         """Parse BIRADS from xml file """
