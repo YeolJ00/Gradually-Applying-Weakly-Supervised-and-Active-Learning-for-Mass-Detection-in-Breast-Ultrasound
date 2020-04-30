@@ -23,7 +23,7 @@ import random
 
 class stanford_dog(imdb):
     def __init__(self, image_set, data_path):
-        imdb.__init__(self, image_set)
+        imdb.__init__(self, 'Stanford_Dog' + image_set)
         self._image_set = image_set
         self._data_path = data_path
         self._classes_image = ('__background__','bloodhound','English_foxhound')
@@ -86,7 +86,7 @@ class stanford_dog(imdb):
         returns gt_roidb : list of dictionaries
         """
         if not (self.name.startswith('al')):
-            cache_file = os.path.join(self.cache_path, 'stanford_dog_' + self.name + '_gt_roidb_master.pkl')
+            cache_file = os.path.join(self.cache_path, + self.name + '_gt_roidb_master.pkl')
             if os.path.exists(cache_file):
                 with open(cache_file, 'rb') as fid:
                     roidb = pickle.load(fid)

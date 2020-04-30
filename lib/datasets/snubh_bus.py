@@ -23,7 +23,7 @@ import random
 
 class snubh_bus(imdb):
     def __init__(self, image_set, data_path):
-        imdb.__init__(self, image_set)
+        imdb.__init__(self, 'SNUBH_BUS'+image_set)
         self._image_set = image_set
         self._data_path = data_path
         self._classes_image = ('__background__','benign','malignant')
@@ -86,7 +86,7 @@ class snubh_bus(imdb):
         returns gt_roidb : list of dictionaries
         """
         if not (self.name.startswith('al')):
-            cache_file = os.path.join(self.cache_path, 'snubh_' + self.name + '_gt_roidb_master.pkl')
+            cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb_master.pkl')
             if os.path.exists(cache_file):
                 with open(cache_file, 'rb') as fid:
                     roidb = pickle.load(fid)
