@@ -334,7 +334,7 @@ if __name__ == '__main__':
                     .format(i + 1, num_images_s, detect_time, nms_time))
     sys.stdout.flush()
     if vis and i%10==0:
-      cv2.imwrite('output/{}/test/faster_rcnn_10/result_test_{}.png'.format(args.net, i), im2show)
+      cv2.imwrite(output_dir + '/result_test_{}.png'.format(i), im2show)
 
   #-------------------SAME PROCEDURE FOR test_normal-----------------#     
   data_iter = iter(dataloader_n)
@@ -429,7 +429,7 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     if vis and i%10 ==0:
-      cv2.imwrite('output/{}/test/faster_rcnn_10/result_test_normal_{}.png'.format(args.net, i), im2show)
+      cv2.imwrite(output_dir + '/result_test_normal_{}.png'.format(i), im2show)
 
   print('Evaluating detections')
   imdb_s.evaluate_detections(all_boxes, all_boxes_n, output_dir, thresh = cfg.TEST.EVAL_OBJ_THRESH)

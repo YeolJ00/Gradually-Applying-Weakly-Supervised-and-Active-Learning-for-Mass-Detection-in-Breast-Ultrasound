@@ -194,7 +194,9 @@ if __name__ == '__main__':
   # -- Note: Use validation set and disable the flipped to enable faster loading.
   cfg.TRAIN.USE_FLIPPED = True
   cfg.USE_GPU_NMS = args.cuda
-
+  if args.dataset == "Stanford_Dog":
+    cfg.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
+    
   if args.active_learning:
     imdb_al, roidb_al, ratio_list_al, ratio_index_al = combined_roidb(args.imdb_name + '_al_train')
   imdb_s, roidb_s, ratio_list_s, ratio_index_s = combined_roidb(args.imdb_name + '_s_train')

@@ -23,7 +23,7 @@ import random
 
 class snubh_bus(imdb):
     def __init__(self, image_set, data_path):
-        imdb.__init__(self, 'SNUBH_BUS'+image_set)
+        imdb.__init__(self, 'SNUBH_BUS_'+image_set)
         self._image_set = image_set
         self._data_path = data_path
         self._classes_image = ('__background__','benign','malignant')
@@ -168,7 +168,7 @@ class snubh_bus(imdb):
             os.mkdir(al_imageset_dir)
         if not os.path.isdir(cachedir):
             os.mkdir(cachedir)
-        cachefile = os.path.join(cachedir, 'ws_train_annots.pkl')
+        cachefile = os.path.join(cachedir, 'SNUBH_BUS_ws_train_annots.pkl')
         # read list of images
         with open(imagesetfile, 'r') as f:
             lines = f.readlines()
@@ -304,7 +304,7 @@ class snubh_bus(imdb):
             os.mkdir(logdir)
         if not os.path.isdir(cachedir):
             os.mkdir(cachedir)
-        cachefile = os.path.join(cachedir, 'test_annots.pkl')
+        cachefile = os.path.join(cachedir, 'SNUBH_BUS_test_annots.pkl')
         # read list of images
         with open(imagesetfile, 'r') as f:
             lines = f.readlines()

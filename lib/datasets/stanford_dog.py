@@ -23,11 +23,11 @@ import random
 
 class stanford_dog(imdb):
     def __init__(self, image_set, data_path):
-        imdb.__init__(self, 'Stanford_Dog' + image_set)
+        imdb.__init__(self, 'Stanford_Dog_' + image_set)
         self._image_set = image_set
         self._data_path = data_path
-        self._classes_image = ('__background__','bloodhound','English_foxhound')
-        self._classes = ('__background__','bloodhound','English_foxhound')
+        self._classes_image = ('__background__','bloodhound','english_foxhound')
+        self._classes = ('__background__','bloodhound','english_foxhound')
         self._class_to_ind_image = dict(zip(self._classes_image, range(3)))
         self._ind_to_class_image = dict(zip(range(3),self._classes_image))
 
@@ -86,7 +86,7 @@ class stanford_dog(imdb):
         returns gt_roidb : list of dictionaries
         """
         if not (self.name.startswith('al')):
-            cache_file = os.path.join(self.cache_path, + self.name + '_gt_roidb_master.pkl')
+            cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb_master.pkl')
             if os.path.exists(cache_file):
                 with open(cache_file, 'rb') as fid:
                     roidb = pickle.load(fid)
@@ -166,7 +166,7 @@ class stanford_dog(imdb):
             os.mkdir(al_imageset_dir)
         if not os.path.isdir(cachedir):
             os.mkdir(cachedir)
-        cachefile = os.path.join(cachedir, 'ws_train_annots.pkl')
+        cachefile = os.path.join(cachedir, 'Stanford_Dog_ws_train_annots.pkl')
         # read list of images
         with open(imagesetfile, 'r') as f:
             lines = f.readlines()
@@ -194,12 +194,12 @@ class stanford_dog(imdb):
         # recs == gt_boxes list
 
         uniform = torch.distributions.uniform.Uniform(0,1)
-        benign_list = []
-        malign_list = []
+        bloodhound_list = []
+        foxhound_list = []
         for i, imagename in enumerate(imagenames):
             # pred_boxes_cls = all_boxes[:,i,:,:]
             pred_boxes_cls = np.asarray(all_boxes)[:,i]
-            gt_cls = int(recs[imagename]['diag']) + 1
+            gt_cls = int(recs[imagename]['label']) + 1
             # Variables for checking thesis, Irrelavant to test----
             highest_cls_prob = 0
             highest_xmin = 0
@@ -210,48 +210,48 @@ class stanford_dog(imdb):
 
             #added
             highest_iou = 0
-            benigns = pred_boxes_cls[1].reshape(-1,5)
-            keep = np.where(benigns[:,-1] > thresh)
-            benigns = benigns[keep[0]]
+            bloodhounds = pred_boxes_cls[1].reshape(-1,5)
+            keep = np.where(bloodhounds[:,-1] > thresh)
+            bloodhounds = bloodhounds[keep[0]]
 
-            maligns = pred_boxes_cls[2].reshape(-1,5)
-            keep = np.where(maligns[:,-1] > thresh)
-            maligns = maligns[keep[0]]
+            foxhounds = pred_boxes_cls[2].reshape(-1,5)
+            keep = np.where(foxhounds[:,-1] > thresh)
+            foxhounds = foxhounds[keep[0]]
 
             candidate = {}
             candidate['name'] = self._ind_to_class_image[gt_cls]
 
-            for benign in benigns:
-                for malign in maligns:
-                    benign_roi = torch.from_numpy(benign[:4])
-                    malign_roi = torch.from_numpy(malign[:4])
+            for bloodhound in bloodhounds:
+                for foxhound in foxhounds:
+                    bloodhound_roi = torch.from_numpy(bloodhound[:4])
+                    foxhound_roi = torch.from_numpy(foxhound[:4])
 
-                    ixmin, iymin, _, _ = torch.max(benign_roi, malign_roi)
-                    _, _, ixmax, iymax = torch.min(benign_roi, malign_roi)
+                    ixmin, iymin, _, _ = torch.max(bloodhound_roi, foxhound_roi)
+                    _, _, ixmax, iymax = torch.min(bloodhound_roi, foxhound_roi)
                     iw = torch.max(ixmax-ixmin, torch.Tensor([0]))
                     ih = torch.max(iymax-iymin, torch.Tensor([0]))
                     inters = iw * ih
 
-                    uni = ((benign_roi[2] - benign_roi[0] + 1.) * (benign_roi[3] - benign_roi[1] + 1.) +
-                            (malign_roi[2] - malign_roi[0] + 1.) * (malign_roi[3] - malign_roi[1] + 1.) -
+                    uni = ((bloodhound_roi[2] - bloodhound_roi[0] + 1.) * (bloodhound_roi[3] - bloodhound_roi[1] + 1.) +
+                            (foxhound_roi[2] - foxhound_roi[0] + 1.) * (foxhound_roi[3] - foxhound_roi[1] + 1.) -
                             inters)
                     mutual_iou = inters / uni
 
                     if mutual_iou > 0.5 and mutual_iou > highest_iou:
                         highest_iou = mutual_iou
                         if gt_cls == 1:
-                            xmin, ymin, xmax, ymax = benign_roi[0].cpu().numpy(), benign_roi[1].cpu().numpy(), benign_roi[2].cpu().numpy(), benign_roi[3].cpu().numpy()
+                            xmin, ymin, xmax, ymax = bloodhound_roi[0].cpu().numpy(), bloodhound_roi[1].cpu().numpy(), bloodhound_roi[2].cpu().numpy(), bloodhound_roi[3].cpu().numpy()
                             xmin, ymin, xmax, ymax = int(np.round(xmin)), int(np.round(ymin)), int(np.round(xmax)), int(np.round(ymax))
                             candidate['bndbox'] = [xmin, ymin, xmax, ymax]
                         elif gt_cls == 2:
-                            xmin, ymin, xmax, ymax = malign_roi[0].cpu().numpy(), malign_roi[1].cpu().numpy(), malign_roi[2].cpu().numpy(), malign_roi[3].cpu().numpy()
+                            xmin, ymin, xmax, ymax = foxhound_roi[0].cpu().numpy(), foxhound_roi[1].cpu().numpy(), foxhound_roi[2].cpu().numpy(), foxhound_roi[3].cpu().numpy()
                             xmin, ymin, xmax, ymax = int(np.round(xmin)), int(np.round(ymin)), int(np.round(xmax)), int(np.round(ymax))
                             candidate['bndbox'] = [xmin, ymin, xmax, ymax]
             if 'bndbox' in candidate:
                 if gt_cls == 1:
-                    benign_list.append((imagename,candidate))
+                    bloodhound_list.append((imagename,candidate))
                 elif gt_cls == 2:
-                    malign_list.append((imagename,candidate))
+                    foxhound_list.append((imagename,candidate))
             #added
 
             # for roi_idx in range(len(pred_boxes)):
@@ -273,20 +273,19 @@ class stanford_dog(imdb):
             #         benign_list.append((imagename,obj))
             #     elif gt_cls == 2:
             #         malign_list.append((imagename,obj))
-        num_b = len(benign_list)
-        num_m = len(malign_list)
-        num = num_m if num_m < num_b else num_b
-        sample_b = random.sample(benign_list,num)
-        sample_m = random.sample(malign_list,num)
+        num_b = len(bloodhound_list)
+        num_f = len(foxhound_list)
 
         with open(al_imageset_file,'w') as f:
-            for i in range(num):
-                benign_img, benign_obj = sample_b[i]
-                malign_img, malign_obj = sample_m[i]
-                f.write('{}\n'.format(benign_img))
-                f.write('{}\n'.format(malign_img))
-                self.write_annotation(annopath.format(benign_img+"_AL"), benign_img, recs[benign_img], benign_obj)
-                self.write_annotation(annopath.format(malign_img+"_AL"), malign_img, recs[malign_img], malign_obj)
+            for i in range(num_b):
+                bloodhound_img, bloodhound_obj = bloodhound_list[i]
+                f.write('{}\n'.format(bloodhound_img))
+                self.write_annotation(annopath.format(bloodhound_img+"_AL"), bloodhound_img, recs[bloodhound_img], bloodhound_obj)
+        with open(al_imageset_file,'a') as f:
+            for i in range(num_f):
+                foxhound_img, foxhound_obj = foxhound_list[i]
+                f.write('{}\n'.format(foxhound_img))
+                self.write_annotation(annopath.format(foxhound_img+"_AL"), foxhound_img, recs[foxhound_img], foxhound_obj)
 
     def evaluate_detections(self, all_boxes, all_boxes_n, output_dir, thresh):
         # all_boxes : (cls, image, boxes, 5) 5 = (x, y, x, y, cls_prob)
@@ -302,7 +301,7 @@ class stanford_dog(imdb):
             os.mkdir(logdir)
         if not os.path.isdir(cachedir):
             os.mkdir(cachedir)
-        cachefile = os.path.join(cachedir, 'test_annots.pkl')
+        cachefile = os.path.join(cachedir, 'Stanford_Dog_test_annots.pkl')
         # read list of images
         with open(imagesetfile, 'r') as f:
             lines = f.readlines()
@@ -361,27 +360,27 @@ class stanford_dog(imdb):
             highest_cls_prob = 0
 
             #metric added
-            benigns = pred_boxes_cls[1].reshape(-1,5)
-            keep = np.where(benigns[:,-1] > thresh)
-            benigns = benigns[keep[0]]
+            bloodhounds = pred_boxes_cls[1].reshape(-1,5)
+            keep = np.where(bloodhounds[:,-1] > thresh)
+            bloodhounds = bloodhounds[keep[0]]
 
-            maligns = pred_boxes_cls[2].reshape(-1,5)
-            keep = np.where(maligns[:,-1] > thresh)
-            maligns = maligns[keep[0]]
-            for benign in benigns:
-                for malign in maligns:
-                    benign_roi = torch.from_numpy(benign[:4])
-                    malign_roi = torch.from_numpy(malign[:4])
-                    min_score = benign[-1] if benign[-1] <= malign[-1] else malign[-1]
+            foxhounds = pred_boxes_cls[2].reshape(-1,5)
+            keep = np.where(foxhounds[:,-1] > thresh)
+            foxhounds = foxhounds[keep[0]]
+            for bloodhound in bloodhounds:
+                for foxhound in foxhounds:
+                    bloodhound_roi = torch.from_numpy(bloodhound[:4])
+                    foxhound_roi = torch.from_numpy(foxhound[:4])
+                    min_score = bloodhound[-1] if bloodhound[-1] <= foxhound[-1] else foxhound[-1]
 
-                    ixmin, iymin, _, _ = torch.max(benign_roi, malign_roi)
-                    _, _, ixmax, iymax = torch.min(benign_roi, malign_roi)
+                    ixmin, iymin, _, _ = torch.max(bloodhound_roi, foxhound_roi)
+                    _, _, ixmax, iymax = torch.min(bloodhound_roi, foxhound_roi)
                     iw = torch.max(ixmax-ixmin, torch.Tensor([0]))
                     ih = torch.max(iymax-iymin, torch.Tensor([0]))
                     inters = iw * ih
 
-                    uni = ((benign_roi[2] - benign_roi[0] + 1.) * (benign_roi[3] - benign_roi[1] + 1.) +
-                            (malign_roi[2] - malign_roi[0] + 1.) * (malign_roi[3] - malign_roi[1] + 1.) -
+                    uni = ((bloodhound_roi[2] - bloodhound_roi[0] + 1.) * (bloodhound_roi[3] - bloodhound_roi[1] + 1.) +
+                            (foxhound_roi[2] - foxhound_roi[0] + 1.) * (foxhound_roi[3] - foxhound_roi[1] + 1.) -
                             inters)
                     mutual_iou = inters / uni
 
@@ -418,11 +417,6 @@ class stanford_dog(imdb):
                         highest_cls_prob = cls_prob
                         highest_box_iou = iou
                     
-                # Variables for checking thesis, Irrelavant to test----
-                if highest_cls_prob > thresh and cls_idx == gt_cls:
-                    with open(logdir+'/thesis.txt','a') as f:
-                        f.write('{:.3f},{:.3f}\n'.format(highest_cls_prob, highest_box_iou.item()))
-
             if image_detected:
                 lesion_detected += 1
         # Finished counting for the whole dataset
@@ -433,11 +427,11 @@ class stanford_dog(imdb):
     def parse_ws(self, filename):
         """Parse BIRADS from xml file """
         tree = ET.parse(filename)
-        birads = tree.find('BIRADS')
+        obj = tree.find('object')
         size = tree.find('size')
 
         recs = {}
-        recs['diag'] = birads.find('diag').text
+        recs['label'] = self._class_to_ind_image[obj.find('name').text] - 1
         recs['width'] = size.find('width').text
         recs['height'] = size.find('height').text
         recs['depth'] = size.find('depth').text
@@ -465,25 +459,24 @@ class stanford_dog(imdb):
     def write_annotation(self, file_path, filename, recs, obj):
         with open(file_path,'w') as f:
             root = Element('annotation')
-            SubElement(root, 'folder').text = 'BUS'
-            SubElement(root, 'filename').text = filename + '.tif'
-            SubElement(root, 'source')
+            SubElement(root, 'folder').text = '02088466' if filename.startswith("n02088466") else '02089973'
+            SubElement(root, 'filename').text = filename
+            
+            source = SubElement(root, 'source')
+            SubElement(source, 'database').text = 'ImageNet database'
 
             size = SubElement(root, 'size')
             SubElement(size, 'width').text = str(recs['width'])
             SubElement(size, 'height').text = str(recs['height'])
             SubElement(size, 'depth').text = str(recs['depth'])
 
-            birads = SubElement(root, 'BIRADS')
-            SubElement(birads,'diag').text = recs['diag']
+            SubElement(root, 'segment').text = '0'
             
-            SubElement(root, 'segmented').text = '0'
-
             objects = SubElement(root, 'object')
             SubElement(objects, 'name').text = obj['name']
-            SubElement(objects, 'pose')
-            SubElement(objects, 'truncated').text = '1'
-            SubElement(objects, 'difficult')
+            SubElement(objects, 'pose').text = 'Unspecified'
+            SubElement(objects, 'truncated').text = '0'
+            SubElement(objects, 'difficult').text = '0'
             
             bbox = SubElement(objects, 'bndbox')
             SubElement(bbox, 'xmin').text = str(obj['bndbox'][0])

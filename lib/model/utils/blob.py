@@ -53,7 +53,7 @@ def prep_im_for_blob(im, pixel_means, target_size, max_size, training):
     # im = cv2.resize(im, None, None, fx=im_scale, fy=im_scale,
     #                 interpolation=cv2.INTER_LINEAR)
 
-    #XXX modified: apply augmentation
+    #modified: apply augmentation
     im = im.astype(np.float32, copy=False) / 255.
     if training:
         if cfg.TRAIN.USE_BRIGHTNESS_ADJUSTMENT:
