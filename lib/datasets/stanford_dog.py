@@ -7,7 +7,7 @@ from __future__ import print_function
 # --------------------------------------------------------
 
 import datasets
-import datasets.snubh_bus
+import datasets.stanford_dog
 import os, sys
 from datasets.imdb import imdb
 import xml.dom.minidom as minidom
@@ -21,17 +21,17 @@ import pickle
 import torch
 import random
 
-class snubh_bus(imdb):
+class stanford_dog(imdb):
     def __init__(self, image_set, data_path):
         imdb.__init__(self, image_set)
         self._image_set = image_set
         self._data_path = data_path
-        self._classes_image = ('__background__','benign','malignant')
-        self._classes = ('__background__','benign','malignant')
+        self._classes_image = ('__background__','bloodhound','English_foxhound')
+        self._classes = ('__background__','bloodhound','English_foxhound')
         self._class_to_ind_image = dict(zip(self._classes_image, range(3)))
         self._ind_to_class_image = dict(zip(range(3),self._classes_image))
 
-        self._image_ext = ['.tiff']
+        self._image_ext = ['.jpg']
 
         self._image_index = self._load_image_set_index()
         # Default to roidb handler
@@ -54,7 +54,7 @@ class snubh_bus(imdb):
         """
         Construct an image path from the image's "index" identifier.
         """
-        image_path = os.path.join(self._data_path, 'TIFFImages', index + self._image_ext[0])
+        image_path = os.path.join(self._data_path, 'Images', index + self._image_ext[0])
         assert os.path.exists(image_path), 'path does not exist: {}'.format(image_path)
         return image_path
 
@@ -86,7 +86,7 @@ class snubh_bus(imdb):
         returns gt_roidb : list of dictionaries
         """
         if not (self.name.startswith('al')):
-            cache_file = os.path.join(self.cache_path, 'snubh_' + self.name + '_gt_roidb_master.pkl')
+            cache_file = os.path.join(self.cache_path, 'stanford_dog_' + self.name + '_gt_roidb_master.pkl')
             if os.path.exists(cache_file):
                 with open(cache_file, 'rb') as fid:
                     roidb = pickle.load(fid)
@@ -126,9 +126,6 @@ class snubh_bus(imdb):
         gt_classes = np.zeros((num_objs), dtype=np.int32)
         overlaps = np.zeros((num_objs, self.num_classes), dtype=np.float32)
 
-        birads = data.getElementsByTagName('BIRADS')
-        label = int(get_data_from_tag(birads[0],'diag'))
-
         file_name = data.getElementsByTagName('filename')[0].childNodes[0].data + 'f'
         
         # Load object bounding boxes into a data frame.
@@ -143,6 +140,7 @@ class snubh_bus(imdb):
             boxes[ix, :] = [x1, y1, x2, y2]
             gt_classes[ix] = cls
             overlaps[ix, cls] = 1.0
+            label = cls - 1
 
         overlaps = scipy.sparse.csr_matrix(overlaps)
 
