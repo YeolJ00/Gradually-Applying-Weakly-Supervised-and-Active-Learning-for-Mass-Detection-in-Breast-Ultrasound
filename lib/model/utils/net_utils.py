@@ -53,9 +53,9 @@ def vis_detections(im, class_name, dets, thresh=0.8, gt_box = None):
         bbox = tuple(int(np.round(x)) for x in dets[i, :4])
         score = dets[i, -1]
         color = (0,0,0) # BGR
-        if class_name == 'malignant':
+        if class_name == 'malignant' or class_name == 'English_foxhound':
             color = (0,128,255)
-        elif class_name == 'benign':
+        elif class_name == 'benign' or class_name == 'bloodhound':
             color = (255,255,0)
         if score >= thresh:
             cv2.rectangle(im, bbox[0:2], bbox[2:4], color, 2)

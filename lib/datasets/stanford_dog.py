@@ -26,8 +26,8 @@ class stanford_dog(imdb):
         imdb.__init__(self, 'Stanford_Dog_' + image_set)
         self._image_set = image_set
         self._data_path = data_path
-        self._classes_image = ('__background__','bloodhound','english_foxhound')
-        self._classes = ('__background__','bloodhound','english_foxhound')
+        self._classes_image = ('__background__','bloodhound','English_foxhound')
+        self._classes = ('__background__','bloodhound','English_foxhound')
         self._class_to_ind_image = dict(zip(self._classes_image, range(3)))
         self._ind_to_class_image = dict(zip(range(3),self._classes_image))
 
@@ -132,7 +132,7 @@ class stanford_dog(imdb):
         for ix, obj in enumerate(objs):
             if get_data_from_tag(obj, "name").lower().strip() == '__background__':
                 continue
-            cls = self._class_to_ind_image[str(get_data_from_tag(obj, "name")).lower().strip()]
+            cls = self._class_to_ind_image[str(get_data_from_tag(obj, "name")).strip()]
             x1 = float(get_data_from_tag(obj, 'xmin'))
             y1 = float(get_data_from_tag(obj, 'ymin'))
             x2 = float(get_data_from_tag(obj, 'xmax'))
