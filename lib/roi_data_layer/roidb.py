@@ -23,7 +23,7 @@ def prepare_roidb(imdb):
 
     roidb = imdb.roidb
     # roidb handler is used and saves a dictionary of the roi
-    if not (imdb.name.startswith('al')):
+    if not "al_train" in imdb.name:
         cache_file = os.path.join(imdb.cache_path, imdb.name + '_sizes.pkl')
         if os.path.exists(cache_file):
             print('Image sizes loaded from %s' % cache_file)
