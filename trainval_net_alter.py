@@ -196,6 +196,7 @@ if __name__ == '__main__':
   cfg.USE_GPU_NMS = args.cuda
   if args.dataset == "Stanford_Dog":
     cfg.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
+    cfg.TRAIN.WS_MAL_PCT = 0.5
     
   if args.active_learning:
     imdb_al, roidb_al, ratio_list_al, ratio_index_al = combined_roidb(args.imdb_name + '_al_train')
