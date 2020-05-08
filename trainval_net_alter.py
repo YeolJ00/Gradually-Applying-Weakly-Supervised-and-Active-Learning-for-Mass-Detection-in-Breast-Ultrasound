@@ -334,10 +334,11 @@ if __name__ == '__main__':
   for step in range(args.max_iter + 1):
     # setting to train mode
     fasterRCNN.train()
+    # alpha = 1
     # alpha = 1 - (0.99 * (0.9**(step / 2000)))
-    # alpha = 0.01 + 0.99 * (step/80000.)
+    alpha = 0.01 + 0.99 * (step/args.max_iter)
     # alpha = 0.01 + 0.99 * ((step/args.max_iter)**args.gamma_for_alpha)
-    alpha = 0.01 + 0.99 * ((round(step,-4)/args.max_iter)**args.gamma_for_alpha)
+
 
     if step % train_size_s == 0 and dataset_cycle == "strong":
       data_iter_s = iter(dataloader_s)
