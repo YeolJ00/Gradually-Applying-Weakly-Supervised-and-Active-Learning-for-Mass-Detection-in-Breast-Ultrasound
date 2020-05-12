@@ -195,7 +195,8 @@ if __name__ == '__main__':
   cfg.TRAIN.USE_FLIPPED = True
   cfg.USE_GPU_NMS = args.cuda
   if args.dataset == "Stanford_Dog":
-    cfg.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
+    # cfg.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
+    cfg.PIXEL_MEANS = np.array([[[119.8994, 119.8994, 119.8994]]])
     cfg.TRAIN.WS_MAL_PCT = 0.5
     
   if args.active_learning:
@@ -334,10 +335,14 @@ if __name__ == '__main__':
   for step in range(args.max_iter + 1):
     # setting to train mode
     fasterRCNN.train()
+    # setting only for strong
+    # RCNN_loss_cls_ws = torch.Tensor([0])
+    # alpha = 0
+
     # alpha = 1
     # alpha = 1 - (0.99 * (0.9**(step / 2000)))
-    alpha = 0.01 + 0.99 * (step/args.max_iter)
-    # alpha = 0.01 + 0.99 * ((step/args.max_iter)**args.gamma_for_alpha)
+    # alpha = 0.01 + 0.99 * (step/args.max_iter)
+    alpha = 0.01 + 0.99 * ((step/args.max_iter)**args.gamma_for_alpha)
 
 
     if step % train_size_s == 0 and dataset_cycle == "strong":
@@ -416,8 +421,8 @@ if __name__ == '__main__':
       fg_cnt = torch.sum(rois_label_s.data.ne(0))
       bg_cnt = rois_label_s.data.numel() - fg_cnt
 
-      print("[session %d][iter %4d/%4d] loss: %.4f, lr: %.2e" \
-                              % (args.session, step, args.max_iter, loss_temp, lr))
+      print("[session %d][iter %4d/%4d] loss: %.4f, lr: %.2e, alpha: %.2f" \
+                              % (args.session, step, args.max_iter, loss_temp, lr, alpha))
       print("\t\t\tfg/bg=(%d/%d), time cost: %f" % (fg_cnt, bg_cnt, end-start))
       print("\t\t\trpn_cls_s: %.4f, rpn_box_s: %.4f,  rcnn_cls_s: %.4f,  rcnn_box_s: %.4f, \
         \n\t\t\trcnn_cls_ws: %.4f" \
