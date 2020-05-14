@@ -29,7 +29,7 @@ for split in ['s_train','test','test_normal','ws_train','ws_test','al_train']:
     data_path = 'data/SNUBH_BUS'
     __sets[name] = (lambda split = split, data_path = data_path: snubh_bus(split, data_path))
 
-for split in ['s_train', 'ws_train', 'test']:
+for split in ['s_train', 'ws_train', 'test', 'ws_test', 'al_train']:
     name = 'Stanford_Dog_{}'.format(split)
     data_path = 'data/Stanford_Dog/'
     __sets[name] = (lambda split=split, data_path = data_path: stanford_dog(split, data_path))

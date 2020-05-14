@@ -16,12 +16,21 @@ def parse_ws(filename):
 
 dataset = 'al_train'
 
+# SNUBH_BUS
+# data = 'SNUBH_BUS'
+# c1 = 'benign'
+# c2 = 'malignant'
+
+# Stanford_Dog
+data = 'Stanford_Dog'
+c1 = 'bloodhound'
+c2 = 'English_foxhound'
 
 if dataset == 'al_train':
-    annopath = os.path.join('./data/SNUBH_BUS/Annotations/','{:s}_AL.xml')
+    annopath = os.path.join('./data/'+data+'/Annotations/','{:s}_AL.xml')
 else:
-    annopath = os.path.join('./data/SNUBH_BUS/Annotations/','{:s}.xml')
-imagesetfile = os.path.join('./data/SNUBH_BUS/ImageSets/Main/','{}.txt'.format(dataset))
+    annopath = os.path.join('./data/'+data+'/Annotations/','{:s}.xml')
+imagesetfile = os.path.join('./data/'+data+'/ImageSets/Main/','{}.txt'.format(dataset))
 save = os.path.join('./analysis_{}.txt'.format(dataset))
 
 with open(imagesetfile, 'r') as f:
@@ -35,8 +44,8 @@ with open(save,'w') as f:
         objects = parse_ws(annopath.format(imagename))
         if objects != []:
             f.write('{}\t{}\n'.format(imagename,objects[0]['name']))
-            if objects[0]['name'] == 'benign':
+            if objects[0]['name'] == c1:
                 benign += 1
             else:
                 malignant +=1
-    f.write('total: {}\tbenign: {}\tmalignant: {}\n'.format(benign+malignant,benign,malignant))
+    f.write('total: {}\t{}: {}\t{}: {}\n'.format(benign+malignant,c1,benign,c2,malignant))
