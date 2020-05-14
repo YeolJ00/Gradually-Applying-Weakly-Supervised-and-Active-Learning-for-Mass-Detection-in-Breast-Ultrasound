@@ -441,8 +441,8 @@ if __name__ == '__main__':
                       .format(i + 1, num_images_n, detect_time, nms_time))
       sys.stdout.flush()
 
-      if vis and i%10 ==0:
-        cv2.imwrite(output_dir + '/result_test_normal_{}.png'.format(i), im2show)
+      # if vis and i%10 ==0:
+      #   cv2.imwrite(output_dir + '/result_test_normal_{}.png'.format(i), im2show)
 
   if args.imdbval_name == "Stanford_Dog":
     all_boxes_n = []
