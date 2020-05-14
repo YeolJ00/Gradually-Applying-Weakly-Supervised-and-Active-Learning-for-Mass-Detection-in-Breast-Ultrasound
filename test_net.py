@@ -343,7 +343,8 @@ if __name__ == '__main__':
     sys.stdout.write('im_detect: {:d}/{:d} {:.3f}s {:.3f}s   \r' \
                     .format(i + 1, num_images_s, detect_time, nms_time))
     sys.stdout.flush()
-    if vis and i%10==0:
+    # if vis and i%10==0:
+    if vis:
       cv2.imwrite(output_dir + '/result_test_{}.png'.format(i), im2show)
 
   #-------------------SAME PROCEDURE FOR test_normal-----------------#     
