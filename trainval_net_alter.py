@@ -335,11 +335,11 @@ if __name__ == '__main__':
   for step in range(args.max_iter + 1):
     # setting to train mode
     fasterRCNN.train()
-    # setting only for strong
-    # RCNN_loss_cls_ws = torch.Tensor([0])
-    # alpha = 0
+    # setting for only-strong
+    RCNN_loss_cls_ws = torch.Tensor([0])
+    alpha = 0
 
-    alpha = 1
+    # alpha = 1
     # alpha = 1 - (0.99 * (0.9**(step / 2000)))
     # alpha = 0.01 + 0.99 * (step/args.max_iter)
     # alpha = 0.01 + 0.99 * ((step/args.max_iter)**args.gamma_for_alpha)
@@ -379,20 +379,20 @@ if __name__ == '__main__':
     loss = rpn_loss_cls_s.mean() + rpn_loss_box_s.mean() \
         + RCNN_loss_cls_s.mean() + RCNN_loss_bbox_s.mean()
     
-    data = next(data_iter_ws)
-    with torch.no_grad():
-      im_data.resize_(data[0].size()).copy_(data[0])
-      im_info.resize_(data[1].size()).copy_(data[1])
-      gt_boxes.resize_(data[2].size()).copy_(data[2])
-      num_boxes.resize_(data[3].size()).copy_(data[3])
-      im_label.resize_(data[4].size()).copy_(data[4])
-    fasterRCNN.zero_grad()
-    rois, cls_prob, bbox_pred, \
-    rpn_loss_cls_ws, rpn_loss_box_ws, \
-    RCNN_loss_cls_ws, RCNN_loss_bbox_ws, \
-    rois_label_ws = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = True)
+    # data = next(data_iter_ws)
+    # with torch.no_grad():
+    #   im_data.resize_(data[0].size()).copy_(data[0])
+    #   im_info.resize_(data[1].size()).copy_(data[1])
+    #   gt_boxes.resize_(data[2].size()).copy_(data[2])
+    #   num_boxes.resize_(data[3].size()).copy_(data[3])
+    #   im_label.resize_(data[4].size()).copy_(data[4])
+    # fasterRCNN.zero_grad()
+    # rois, cls_prob, bbox_pred, \
+    # rpn_loss_cls_ws, rpn_loss_box_ws, \
+    # RCNN_loss_cls_ws, RCNN_loss_bbox_ws, \
+    # rois_label_ws = fasterRCNN(im_data, im_info, gt_boxes, num_boxes, im_label, is_ws = True)
     
-    loss += alpha * RCNN_loss_cls_ws.mean()
+    # loss += alpha * RCNN_loss_cls_ws.mean()
 
     # backward
     optimizer.zero_grad()
