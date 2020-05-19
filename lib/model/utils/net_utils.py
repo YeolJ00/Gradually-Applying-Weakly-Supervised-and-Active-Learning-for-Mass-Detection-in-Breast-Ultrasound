@@ -49,29 +49,47 @@ def clip_gradient(model, clip_norm):
 
 def vis_detections(im, class_name, dets, thresh=0.8, gt_box = None):
     """Visual debugging of detections."""
-    for i in range(np.minimum(10, dets.shape[0])):
-        bbox = tuple(int(np.round(x)) for x in dets[i, :4])
-        score = dets[i, -1]
-        color = (0,0,0) # BGR
-        if class_name == 'malignant' or class_name == 'English_foxhound':
-            color = (0,128,255)
-        elif class_name == 'benign' or class_name == 'bloodhound':
-            color = (255,255,0)
-        if score >= thresh:
-            cv2.rectangle(im, bbox[0:2], bbox[2:4], color, 2)
-            cv2.putText(im, '%s: %.3f' % (class_name, score), (bbox[0], bbox[1] + 15), cv2.FONT_HERSHEY_PLAIN,
-                        1.0, (0, 0, 255), thickness=1)
     if gt_box is not None:
         gt_box = tuple(int(np.round(x)) for x in gt_box[0,:])
         if gt_box[-1] == 2:
             color = (0,0,255)
-            gt_class_name = 'malignant'
+            # gt_class_name = 'malignant'
         elif gt_box[-1] == 1:
             color = (255,0,0)
-            gt_class_name = 'benign'
+            # gt_class_name = 'benign'
         cv2.rectangle(im, gt_box[0:2], gt_box[2:4], color, 2)
-        cv2.putText(im,'%s: %s' % (gt_class_name, 'GT'), (gt_box[0], gt_box[1] + 15), cv2.FONT_HERSHEY_PLAIN,
-                        1.0, (0, 0, 255), thickness=1)
+        # cv2.putText(im,'%s: %s' % (gt_class_name, 'GT'), (gt_box[0], gt_box[1] + 15), cv2.FONT_HERSHEY_PLAIN,
+        #                 1.0, (0, 0, 255), thickness=1)
+
+    for i in range(np.minimum(10, dets.shape[0])):
+        bbox = tuple(int(np.round(x)) for x in dets[i, :4])
+        score = dets[i, -1]
+        color = (255,255,255) # BGR
+        face_color = (0,0,0) # BGR
+        if class_name == 'malignant' or class_name == 'English_foxhound':
+            cls = 'orange'
+            face_color = (0,128,255)
+        elif class_name == 'benign' or class_name == 'bloodhound':
+            cls = 'cyan'
+            face_color = (255,255,0)
+        if score >= thresh:
+            text = '%s: %.3f' % (class_name, score)
+            font = cv2.FONT_HERSHEY_PLAIN
+            (text_width, text_height), baseline = cv2.getTextSize(text, font, fontScale=1.0, thickness=1)
+            text_height += baseline
+            if cls == 'orange':
+                text_coords = ((bbox[0], bbox[1]), (bbox[0]+text_width, bbox[1]+text_height + 2))
+            else:
+                text_coords = ((bbox[0], bbox[3]), (bbox[0]+text_width, bbox[3]+text_height + 2))
+            cv2.rectangle(im, bbox[0:2], bbox[2:4], face_color, 2)
+
+            overlay = im.copy()            
+            cv2.rectangle(overlay, text_coords[0], text_coords[1], face_color, cv2.FILLED)
+            alpha = 0.4
+            im = cv2.addWeighted(overlay, alpha, im, 1 - alpha, 0)
+
+            cv2.putText(im, text, (text_coords[0][0], text_coords[0][1] + 15), cv2.FONT_HERSHEY_PLAIN,
+                        1.0, color, thickness=1)
     return im
 
 
