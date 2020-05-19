@@ -74,8 +74,8 @@ def vis_detections(im, class_name, dets, thresh=0.8, gt_box = None):
             face_color = (255,255,0)
         if score >= thresh:
             text = '%s: %.3f' % (class_name, score)
-            font = cv2.FONT_HERSHEY_PLAIN
-            (text_width, text_height), baseline = cv2.getTextSize(text, font, fontScale=1.0, thickness=1)
+            font = cv2.FONT_HERSHEY_DUPLEX
+            (text_width, text_height), baseline = cv2.getTextSize(text, font, fontScale=0.75, thickness=1)
             text_height += baseline
             if cls == 'orange':
                 text_coords = ((bbox[0], bbox[1]), (bbox[0]+text_width, bbox[1]+text_height + 2))
@@ -88,8 +88,8 @@ def vis_detections(im, class_name, dets, thresh=0.8, gt_box = None):
             alpha = 0.4
             im = cv2.addWeighted(overlay, alpha, im, 1 - alpha, 0)
 
-            cv2.putText(im, text, (text_coords[0][0], text_coords[0][1] + 15), cv2.FONT_HERSHEY_PLAIN,
-                        1.0, color, thickness=1)
+            cv2.putText(im, text, (text_coords[0][0], text_coords[0][1] + 23), cv2.FONT_HERSHEY_DUPLEX,
+                        0.75, color, thickness=1)            
     return im
 
 
