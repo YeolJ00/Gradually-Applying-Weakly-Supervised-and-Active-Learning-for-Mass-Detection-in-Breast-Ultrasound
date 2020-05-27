@@ -85,7 +85,7 @@ class snubh_bus(imdb):
 
         returns gt_roidb : list of dictionaries
         """
-        if not "al_train" in self.name:
+        if not 'al_' in self.name:
             cache_file = os.path.join(self.cache_path, self.name + '_gt_roidb_master.pkl')
             if os.path.exists(cache_file):
                 with open(cache_file, 'rb') as fid:
@@ -95,7 +95,7 @@ class snubh_bus(imdb):
 
         gt_roidb = [self._load_imagenet_annotation(index)
                     for index in self.image_index]
-        if not "al_train" in self.name:
+        if not 'al_' in self.name:
             with open(cache_file, 'wb') as fid:
                 pickle.dump(gt_roidb, fid, pickle.HIGHEST_PROTOCOL)
             print('wrote gt roidb to {}'.format(cache_file))
@@ -107,7 +107,7 @@ class snubh_bus(imdb):
         """
         Load image and bounding boxes info from txt files of imagenet.
         """
-        if self._image_set == 'al_train':
+        if 'al_' in self._image_set:
             filename = os.path.join(self._data_path, 'Annotations', index + '_AL.xml')
         else:
             filename = os.path.join(self._data_path, 'Annotations', index + '.xml')
@@ -162,6 +162,8 @@ class snubh_bus(imdb):
         cachedir = os.path.join(self._data_path, 'annotations_cache')
         al_imageset_dir = os.path.join(self._data_path,'ImageSets','Main')
         al_imageset_file = os.path.join(al_imageset_dir,'al_train.txt')
+        al_malign_imageset_file = os.path.join(al_imageset_dir, 'al_malign_train.txt')
+        al_benign_imageset_file = os.path.join(al_imageset_dir, 'al_benign_train.txt')
         al_annot_file = os.path.join(self._data_path)
 
         if not os.path.isdir(al_imageset_dir):
@@ -281,12 +283,14 @@ class snubh_bus(imdb):
         sample_b = random.sample(benign_list,num)
         sample_m = random.sample(malign_list,num)
 
-        with open(al_imageset_file,'w') as f:
+        with open(al_imageset_file,'w') as f1, open(al_malign_imageset_file, 'w') as f2, open(al_benign_imageset_file, 'w') as f3:
             for i in range(num):
                 benign_img, benign_obj = sample_b[i]
                 malign_img, malign_obj = sample_m[i]
-                f.write('{}\n'.format(benign_img))
-                f.write('{}\n'.format(malign_img))
+                f1.write('{}\n'.format(benign_img))
+                f3.write('{}\n'.format(benign_img))
+                f1.write('{}\n'.format(malign_img))
+                f2.write('{}\n'.format(malign_img))
                 self.write_annotation(annopath.format(benign_img+"_AL"), benign_img, recs[benign_img], benign_obj)
                 self.write_annotation(annopath.format(malign_img+"_AL"), malign_img, recs[malign_img], malign_obj)
 
@@ -338,6 +342,13 @@ class snubh_bus(imdb):
         # metric = sum of (mutual_iou * min(box1, box2))
         metric = 0
         num_metric = 0
+        malign_cor = 0
+        benign_cor = 0
+        # for roc curve
+        tp = 0
+        fp = 0
+        tn = 0
+        fn = 0
 
         for i in all_boxes_n[1:]:
             for j in i:
@@ -370,6 +381,48 @@ class snubh_bus(imdb):
             maligns = pred_boxes_cls[2].reshape(-1,5)
             keep = np.where(maligns[:,-1] > thresh)
             maligns = maligns[keep[0]]
+
+            #for roc curve
+            if gt_cls == 2 and len(maligns) > 0:
+                tp += 1
+            elif gt_cls == 2 and len(maligns) == 0:
+                fn += 1
+            elif gt_cls == 1 and len(maligns) > 0:
+                fp += 1
+            else:
+                tn += 1
+
+            if gt_cls == 1:
+                for benign in benigns:
+                    benign_roi = torch.from_numpy(benign[:4])
+                    ixmin, iymin, _, _ = torch.max(benign_roi, gt_box)
+                    _, _, ixmax, iymax = torch.min(benign_roi, gt_box)
+                    iw = torch.max(ixmax-ixmin, torch.Tensor([0]))
+                    ih = torch.max(iymax-iymin, torch.Tensor([0]))
+                    inters = iw*ih
+                    uni = ((benign_roi[2] - benign_roi[0] + 1.) * (benign_roi[3] - benign_roi[1] + 1.) +
+                            (gt_box[2] - gt_box[0] + 1.) * (gt_box[3] - gt_box[1] + 1.) -
+                            inters)
+                    benign_with_gt = inters/uni
+
+                    if benign_with_gt > 0.5:
+                        benign_cor += 1
+            if gt_cls == 2:
+                for malign in maligns:
+                    malign_roi = torch.from_numpy(malign[:4])
+                    ixmin, iymin, _, _ = torch.max(malign_roi, gt_box)
+                    _, _, ixmax, iymax = torch.min(malign_roi, gt_box)
+                    iw = torch.max(ixmax - ixmin, torch.Tensor([0]))
+                    ih = torch.max(iymax-iymin, torch.Tensor([0]))
+                    inters = iw*ih
+                    uni = ((malign_roi[2] - malign_roi[0] + 1.) * (malign_roi[3] - malign_roi[1] + 1.) +
+                            (gt_box[2] - gt_box[0] + 1.) * (gt_box[3] - gt_box[1] + 1.) -
+                            inters)
+                    malign_with_gt = inters/uni
+
+                    if malign_with_gt > 0.5:
+                        malign_cor += 1
+
             for benign in benigns:
                 for malign in maligns:
                     benign_roi = torch.from_numpy(benign[:4])
@@ -387,10 +440,29 @@ class snubh_bus(imdb):
                             inters)
                     mutual_iou = inters / uni
 
-                    if mutual_iou > 0.5:
-                        metric += mutual_iou.item() * min_score.item()
+                    ixmin, iymin, _, _ = torch.max(benign_roi, gt_box)
+                    _, _, ixmax, iymax = torch.min(benign_roi, gt_box)
+                    iw = torch.max(ixmax-ixmin, torch.Tensor([0]))
+                    ih = torch.max(iymax-iymin, torch.Tensor([0]))
+                    inters = iw*ih
+                    uni = ((benign_roi[2] - benign_roi[0] + 1.) * (benign_roi[3] - benign_roi[1] + 1.) +
+                            (gt_box[2] - gt_box[0] + 1.) * (gt_box[3] - gt_box[1] + 1.) -
+                            inters)
+                    benign_with_gt = inters/uni
+
+                    ixmin, iymin, _, _ = torch.max(malign_roi, gt_box)
+                    _, _, ixmax, iymax = torch.min(malign_roi, gt_box)
+                    iw = torch.max(ixmax - ixmin, torch.Tensor([0]))
+                    ih = torch.max(iymax-iymin, torch.Tensor([0]))
+                    inters = iw*ih
+                    uni = ((malign_roi[2] - malign_roi[0] + 1.) * (malign_roi[3] - malign_roi[1] + 1.) +
+                            (gt_box[2] - gt_box[0] + 1.) * (gt_box[3] - gt_box[1] + 1.) -
+                            inters)
+                    malign_with_gt = inters/uni
+
+                    if mutual_iou > 0.5 and benign_with_gt > 0.5 and malign_with_gt > 0.5:
+                        # metric += mutual_iou.item() * min_score.item()
                         num_metric += 1
-            #metric added
 
             for cls_idx in range(1,self.num_classes):
                 pred_boxes = pred_boxes_cls[cls_idx].reshape(-1,5)
@@ -413,7 +485,7 @@ class snubh_bus(imdb):
                     if iou > 0.5 and cls_prob > thresh:# Threshold for detection
                         image_detected = True
                         box_over_object += 1
-                        if cls_idx == gt_cls and cls_prob>0.5:
+                        if cls_idx == gt_cls and cls_prob>thresh:
                             cor_box_over_object += 1
                     
                     if cls_idx == gt_cls and highest_cls_prob < cls_prob:
@@ -430,7 +502,8 @@ class snubh_bus(imdb):
         # Finished counting for the whole dataset
         box_over_background = all_detected_boxes - box_over_object
         with open(logfile, 'a') as f:
-            f.write('{},{},{},{},{},{}, {}, {:.4f}\n'.format(box_over_object, lesion_detected, all_object, cor_box_over_object, all_detected_boxes, box_over_background_n, num_metric, metric))
+            # f.write('{},{},{},{},{},{}, {}, {:.4f}\n'.format(box_over_object, lesion_detected, all_object, cor_box_over_object, all_detected_boxes, box_over_background_n, num_metric, metric))
+            f.write('{},{},{},{},{},{}, {}, tp: {}, fp: {}, tn: {}, fn: {}, {}, {}\n'.format(box_over_object, lesion_detected, all_object, cor_box_over_object, all_detected_boxes, box_over_background_n, num_metric,tp,fp,tn,fn,benign_cor,malign_cor))
 
     def parse_ws(self, filename):
         """Parse BIRADS from xml file """
@@ -449,7 +522,8 @@ class snubh_bus(imdb):
     def parse_rec(self, filename):
         """ Parse a PASCAL VOC xml file """
         tree = ET.parse(filename)
-        objects = []
+        objects = []        
+
         for obj in tree.findall('object'):
             obj_struct = {}
             obj_struct['name'] = obj.find('name').text

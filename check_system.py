@@ -17,14 +17,14 @@ def parse_ws(filename):
 dataset = 'al_train'
 
 # SNUBH_BUS
-# data = 'SNUBH_BUS'
-# c1 = 'benign'
-# c2 = 'malignant'
+data = 'SNUBH_BUS'
+c1 = 'benign'
+c2 = 'malignant'
 
 # Stanford_Dog
-data = 'Stanford_Dog'
-c1 = 'bloodhound'
-c2 = 'English_foxhound'
+# data = 'Stanford_Dog'
+# c1 = 'bloodhound'
+# c2 = 'English_foxhound'
 
 if dataset == 'al_train':
     annopath = os.path.join('./data/'+data+'/Annotations/','{:s}_AL.xml')

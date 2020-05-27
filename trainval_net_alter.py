@@ -198,7 +198,7 @@ if __name__ == '__main__':
     # cfg.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
     cfg.PIXEL_MEANS = np.array([[[119.8994, 119.8994, 119.8994]]])
     cfg.TRAIN.WS_MAL_PCT = 0.5
-    
+  
   if args.active_learning:
     imdb_al, roidb_al, ratio_list_al, ratio_index_al = combined_roidb(args.imdb_name + '_al_train')
   imdb_s, roidb_s, ratio_list_s, ratio_index_s = combined_roidb(args.imdb_name + '_s_train')
@@ -332,42 +332,50 @@ if __name__ == '__main__':
   start = time.time()
   loss_temp = 0
   dataset_cycle = "strong"
+
+  data_iter_s = iter(dataloader_s)
+  if args.active_learning:
+    data_iter_al = iter(dataloader_al)
+  data_iter_ws = iter(dataloader_ws)
+
   for step in range(args.max_iter + 1):
     # setting to train mode
     fasterRCNN.train()
 
+    # RCNN_loss_cls_ws = torch.Tensor([0])
     # alpha = 0
+
     # alpha = 1
     # alpha = 1 - (0.99 * (0.9**(step / 2000)))
     # alpha = 0.01 + 0.99 * (step/args.max_iter)
     alpha = 0.01 + 0.99 * ((step/args.max_iter)**args.gamma_for_alpha)
 
-
-    if step % train_size_s == 0 and dataset_cycle == "strong":
-      data_iter_s = iter(dataloader_s)
-      dataset_cycle = "al" if args.active_learning else "strong"
-    if args.active_learning and step % train_size_al == 0 and dataset_cycle == "al":
-      data_iter_al = iter(dataloader_al)
-      dataset_cycle = "strong"
-    if step % train_size_ws == 0:
-      data_iter_ws = iter(dataloader_ws)
-
     if dataset_cycle == "strong":
-      data = next(data_iter_s)
-      with torch.no_grad():
-        im_data.resize_(data[0].size()).copy_(data[0])
-        im_info.resize_(data[1].size()).copy_(data[1])
-        gt_boxes.resize_(data[2].size()).copy_(data[2])
-        num_boxes.resize_(data[3].size()).copy_(data[3])
-        im_label.resize_(data[4].size()).copy_(data[4])  
-    elif args.active_learning and dataset_cycle =="al":
-      data = next(data_iter_al)
-      with torch.no_grad():
-        im_data.resize_(data[0].size()).copy_(data[0])
-        im_info.resize_(data[1].size()).copy_(data[1])
-        gt_boxes.resize_(data[2].size()).copy_(data[2])
-        num_boxes.resize_(data[3].size()).copy_(data[3])
-        im_label.resize_(data[4].size()).copy_(data[4])  
+      data = next(data_iter_s, None)
+      if data is None:
+        data_iter_s = iter(dataloader_s)
+        if args.active_learning:
+          dataset_cycle = "al"
+          data = next(data_iter_al)
+        else:
+          data = next(data_iter_s)
+    elif dataset_cycle == "al":
+      data = next(data_iter_al, None)
+      if data is None:
+        data_iter_al = iter(dataloader_al)
+        dataset_cycle = "strong"
+        data = next(data_iter_s)    
+    data_ws = next(data_iter_ws, None)
+    if data_ws is None:
+      data_iter_ws = iter(dataloader_ws)
+      data_ws = next(data_iter_ws)
+
+    with torch.no_grad():
+      im_data.resize_(data[0].size()).copy_(data[0])
+      im_info.resize_(data[1].size()).copy_(data[1])
+      gt_boxes.resize_(data[2].size()).copy_(data[2])
+      num_boxes.resize_(data[3].size()).copy_(data[3])
+      im_label.resize_(data[4].size()).copy_(data[4])  
     fasterRCNN.zero_grad()
     rois, cls_prob, bbox_pred, \
     rpn_loss_cls_s, rpn_loss_box_s, \
@@ -377,13 +385,12 @@ if __name__ == '__main__':
     loss = rpn_loss_cls_s.mean() + rpn_loss_box_s.mean() \
         + RCNN_loss_cls_s.mean() + RCNN_loss_bbox_s.mean()
     
-    data = next(data_iter_ws)
     with torch.no_grad():
-      im_data.resize_(data[0].size()).copy_(data[0])
-      im_info.resize_(data[1].size()).copy_(data[1])
-      gt_boxes.resize_(data[2].size()).copy_(data[2])
-      num_boxes.resize_(data[3].size()).copy_(data[3])
-      im_label.resize_(data[4].size()).copy_(data[4])
+      im_data.resize_(data_ws[0].size()).copy_(data_ws[0])
+      im_info.resize_(data_ws[1].size()).copy_(data_ws[1])
+      gt_boxes.resize_(data_ws[2].size()).copy_(data_ws[2])
+      num_boxes.resize_(data_ws[3].size()).copy_(data_ws[3])
+      im_label.resize_(data_ws[4].size()).copy_(data_ws[4])
     fasterRCNN.zero_grad()
     rois, cls_prob, bbox_pred, \
     rpn_loss_cls_ws, rpn_loss_box_ws, \
