@@ -1,6 +1,6 @@
-## Actively Assisting Weakly Supervised Models for Mass Detection in Breast Ultrasound Images
+## Gradually Applying Weakly Supervised and Active Learning for Mass Detection in Breast Ultrasound Images
 
-This is the implementation for the paper "Actively Assisting Weakly Supervised Models for Mass Detection in Breast Ultrasound Images"
+This is the implementation for the paper "Gradually Applying Weakly Supervised and Active Learning for Mass Detection in Breast Ultrasound Images" (https://www.mdpi.com/2076-3417/10/13/4519)
 
 The code is based on the Pytorch 1.0 implementation for Faster-RCNN (https://github.com/jwyang/faster-rcnn.pytorch)
 
