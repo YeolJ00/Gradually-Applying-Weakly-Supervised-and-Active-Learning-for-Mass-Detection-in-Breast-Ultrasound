@@ -72,11 +72,18 @@ Please check the argument code for detailed specifications of the model.
 
 
 ## Citation
-
-    @inproceedings{renNIPS15fasterrcnn,
-        Author = {Shaoqing Ren and Kaiming He and Ross Girshick and Jian Sun},
-        Title = {Faster {R-CNN}: Towards Real-Time Object Detection
-                 with Region Proposal Networks},
-        Booktitle = {Advances in Neural Information Processing Systems ({NIPS})},
-        Year = {2015}
+    @Article{yun20mdpi,
+    AUTHOR = {Yun, JooYeol and Oh, JungWoo and Yun, IlDong},
+    TITLE = {Gradually Applying Weakly Supervised and Active Learning for Mass Detection in Breast Ultrasound Images},
+    JOURNAL = {Applied Sciences},
+    VOLUME = {10},
+    YEAR = {2020},
+    NUMBER = {13},
+    ARTICLE-NUMBER = {4519},
+    URL = {https://www.mdpi.com/2076-3417/10/13/4519},
+    ISSN = {2076-3417},
+    DOI = {10.3390/app10134519}
     }
+
+
+
